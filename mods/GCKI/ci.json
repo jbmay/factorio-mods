@@ -1,7 +1,7 @@
 {
-  "factorio": "2.0.77",
+  "factorio": "2.1.24",
   "dependencies": {
-    "Pi-C_lib": "2.0.3"
+    "Pi-C_lib": "2.1.0"
   },
   "scenarios": [],
   "saves": [],

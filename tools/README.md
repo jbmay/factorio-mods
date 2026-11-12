@@ -5,6 +5,18 @@ validation, packaging, engine testing, and portal publication. It uses Python
 3.13+ and the standard library. Lua syntax checking uses the external `luac5.2`
 executable, with `LUAC` available as an override. Engine tests run on Linux.
 
+For local use without host Python or Lua, the root Dockerfile and Maru tasks run
+these same checks in a container. CI invokes the same tasks and image.
+`maru run test-static` runs unit, syntax, and
+packaging checks; `maru run test --set MOD=GCKI` includes engine tests. Omitting
+`MOD` selects all mods. [Local container tests](../docs/development.md#local-container-tests)
+describes credentials, mounts, and retained saves/logs.
+
+The `list-mods`, `release-matrix`, and `publish` tasks also run their corresponding
+CLI commands in that image. Discovery and release selection write JSON under
+`dist/` so workflow outputs do not mix with Maru build/progress messages. CI's
+Maru installation is pinned in `.maru-version`.
+
 The repository root is resolved from the script's location. A command's mod
 argument selects a directory under `mods/`: `GCKI` selects `mods/GCKI`, whose
 internal Factorio name is `gcki-continued`. Package filenames use the internal
@@ -70,7 +82,7 @@ not rewritten.
 
 ### Engine testing
 
-`run_engine(mod, work)` creates the work directory if needed and requires it to
+`run_engine(mod, work, report=None)` creates the work directory if needed and requires it to
 be empty. It downloads the pinned Linux headless Factorio release, installs a
 freshly built mod package, and downloads each external dependency pinned in
 `ci.json.dependencies`.
@@ -144,6 +156,13 @@ a real upload when its checks pass.
 
 ## Supporting functions
 
+`TestReport` records individual checks. Its `case(name)` context manager prints
+`[RUN]`, then records `[PASS]` only after the operation succeeds. Exceptions
+record `[FAIL]` before propagating. `record(name, status, detail=None)` also
+supports `[SKIP]` for unconfigured fixtures. Check, package, and engine commands
+accept `--report FILE` to write these outcomes as JSON; progress messages go to
+stderr so JSON output and package paths on stdout remain usable by callers.
+
 | Function | Responsibility |
 | --- | --- |
 | `read_json(path)` | Reads a UTF-8 JSON file into Python objects. |
@@ -163,8 +182,23 @@ network calls are mocked in those unit tests; running them does not download
 Factorio or publish a mod.
 
 ```sh
-python -m unittest discover -s tools/tests -v
+python -m unittest discover -s tools/tests -v -b
 ```
+
+[`run_container_tests.py`](run_container_tests.py) is the image entrypoint. It
+discovers mods, runs the unit suite once in-process, and invokes `mod_ci.py check` for each
+selected mod. In static-only mode it then invokes `package`; in full mode it
+creates a fresh results directory and invokes `engine`, which builds the package
+as part of preparing the game environment. It forwards failures as a nonzero
+container exit status.
+
+The entrypoint's `UnitResult` records each unit test's actual outcome. Unit output
+is buffered so successful mocks do not print misleading engine or upload success
+messages. `run_check()` collects JSON reports from each CLI command, including
+partial results on failure. `print_summary()` ends the run with a named list of
+passed, failed, and skipped checks plus totals. A failing check stops the run;
+later checks are not reported as passed. Static-only mode explicitly marks the
+engine as skipped, and empty scenario/save lists are reported as unconfigured.
 
 [Development and releases](../docs/development.md) describes how these commands
 fit into the GitHub workflows and repository configuration.

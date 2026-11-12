@@ -5,6 +5,7 @@ Python standard library only. Network commands never print credential-bearing UR
 """
 
 import argparse
+from contextlib import contextmanager
 import hashlib
 import io
 import json
@@ -13,6 +14,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
+import sys
 import tarfile
 import tempfile
 import urllib.error
@@ -34,6 +36,36 @@ ASSET_SUFFIXES = {".lua", ".json", ".cfg", ".png", ".jpg", ".jpeg", ".ogg",
                   ".wav", ".flac", ".ttf", ".otf", ".txt"}
 ROOT_FILES = {"info.json", "changelog.txt", "thumbnail.png", "LICENSE", "LICENSE.txt",
               "LICENSE.md", "COPYING", "credits.txt"}
+
+
+class TestReport:
+    """Record completed checks, optionally sharing their results with a caller."""
+
+    def __init__(self, path=None):
+        self.path = Path(path) if path else None
+        self.cases = []
+
+    def record(self, name, status, detail=None):
+        case = {"name": name, "status": status}
+        if detail:
+            case["detail"] = detail
+        self.cases.append(case)
+        if self.path:
+            self.path.write_text(json.dumps(self.cases, indent=2) + "\n")
+        suffix = f" ({detail})" if detail else ""
+        label = {"passed": "PASS", "failed": "FAIL", "skipped": "SKIP"}[status]
+        print(f"[{label}] {name}{suffix}", file=sys.stderr, flush=True)
+
+    @contextmanager
+    def case(self, name):
+        print(f"[RUN] {name}", file=sys.stderr, flush=True)
+        try:
+            yield
+        except Exception:
+            self.record(name, "failed")
+            raise
+        else:
+            self.record(name, "passed")
 
 
 def read_json(path):
@@ -218,8 +250,10 @@ def check_dependencies(infos):
                 raise ValueError(f"Unsatisfied dependency: {info['name']} requires {dep}")
 
 
-def run_engine(mod, work):
-    path, info, ci = validate(mod)
+def run_engine(mod, work, report=None):
+    report = report if report is not None else TestReport()
+    with report.case(f"{mod}: engine configuration"):
+        path, info, ci = validate(mod)
     work = Path(work).resolve()
     work.mkdir(parents=True, exist_ok=True)
     if any(work.iterdir()):
@@ -231,38 +265,40 @@ def run_engine(mod, work):
     engine = work / "factorio/bin/x64/factorio"
     mods = work / "mods"
     mods.mkdir()
-    package_zip = package(mod)
+    with report.case(f"{mod}: release ZIP packaging"):
+        package_zip = package(mod)
     shutil.copy2(package_zip, mods)
     infos = {info["name"]: info}
     base = read_json(work / "factorio/data/base/info.json")
     infos["base"] = base
     infos["core"] = read_json(work / "factorio/data/core/info.json")
-    for name, version in ci["dependencies"].items():
-        if name in infos:
-            raise ValueError(f"Duplicate/bundled dependency pin: {name}")
-        releases = api(f"https://mods.factorio.com/api/mods/{name}/full")["releases"]
-        release = next((r for r in releases if r["version"] == version), None)
-        if release is None or release["info_json"]["factorio_version"] != info["factorio_version"]:
-            raise ValueError(f"{name} {version} does not target Factorio {info['factorio_version']}")
-        username, token = os.getenv("FACTORIO_USERNAME"), os.getenv("FACTORIO_TOKEN")
-        if not username or not token:
-            raise ValueError("Dependency downloads require FACTORIO_USERNAME and FACTORIO_TOKEN")
-        download_url = urllib.parse.urljoin("https://mods.factorio.com", release["download_url"])
-        if urllib.parse.urlparse(download_url).netloc != "mods.factorio.com":
-            raise ValueError("Unexpected dependency download host")
-        data = request(download_url + "?" + urllib.parse.urlencode({"username": username, "token": token}))
-        if hashlib.sha1(data).hexdigest() != release["sha1"]:
-            raise ValueError(f"Checksum mismatch for {name}")
-        with zipfile.ZipFile(io.BytesIO(data)) as z:
-            metadata = [n for n in z.namelist() if n.count("/") == 1 and n.endswith("/info.json")]
-            if len(metadata) != 1:
-                raise ValueError(f"Invalid dependency archive: {name}")
-            dep_info = json.loads(z.read(metadata[0]))
-        if dep_info["name"] != name or dep_info["version"] != version:
-            raise ValueError(f"Dependency metadata mismatch: {name}")
-        infos[name] = dep_info
-        (mods / f"{name}_{version}.zip").write_bytes(data)
-    check_dependencies(infos)
+    with report.case(f"{mod}: pinned dependency versions, checksums, and constraints"):
+        for name, version in ci["dependencies"].items():
+            if name in infos:
+                raise ValueError(f"Duplicate/bundled dependency pin: {name}")
+            releases = api(f"https://mods.factorio.com/api/mods/{name}/full")["releases"]
+            release = next((r for r in releases if r["version"] == version), None)
+            if release is None or release["info_json"]["factorio_version"] != info["factorio_version"]:
+                raise ValueError(f"{name} {version} does not target Factorio {info['factorio_version']}")
+            username, token = os.getenv("FACTORIO_USERNAME"), os.getenv("FACTORIO_TOKEN")
+            if not username or not token:
+                raise ValueError("Dependency downloads require FACTORIO_USERNAME and FACTORIO_TOKEN")
+            download_url = urllib.parse.urljoin("https://mods.factorio.com", release["download_url"])
+            if urllib.parse.urlparse(download_url).netloc != "mods.factorio.com":
+                raise ValueError("Unexpected dependency download host")
+            data = request(download_url + "?" + urllib.parse.urlencode({"username": username, "token": token}))
+            if hashlib.sha1(data).hexdigest() != release["sha1"]:
+                raise ValueError(f"Checksum mismatch for {name}")
+            with zipfile.ZipFile(io.BytesIO(data)) as z:
+                metadata = [n for n in z.namelist() if n.count("/") == 1 and n.endswith("/info.json")]
+                if len(metadata) != 1:
+                    raise ValueError(f"Invalid dependency archive: {name}")
+                dep_info = json.loads(z.read(metadata[0]))
+            if dep_info["name"] != name or dep_info["version"] != version:
+                raise ValueError(f"Dependency metadata mismatch: {name}")
+            infos[name] = dep_info
+            (mods / f"{name}_{version}.zip").write_bytes(data)
+        check_dependencies(infos)
     (mods / "mod-list.json").write_text(json.dumps({"mods": [
         {"name": name, "enabled": True} for name in infos if name != "core"
     ]}))
@@ -272,9 +308,11 @@ def run_engine(mod, work):
     config.write_text(f"[path]\nread-data={work}/factorio/data\nwrite-data={work}/data\n")
     common = [str(engine), "--config", str(config), "--mod-directory", str(mods)]
     save = work / "smoke.zip"
-    subprocess.run(common + ["--create", str(save), "--map-gen-seed", "1"], check=True, timeout=180)
-    subprocess.run(common + ["--benchmark", str(save), "--benchmark-ticks", str(ci["benchmark_ticks"]),
-                             "--benchmark-runs", "1"], check=True, timeout=180)
+    with report.case(f"{mod}: Factorio {ci['factorio']} mod initialization and new save creation"):
+        subprocess.run(common + ["--create", str(save), "--map-gen-seed", "1"], check=True, timeout=180)
+    with report.case(f"{mod}: reload generated save and run {ci['benchmark_ticks']} ticks"):
+        subprocess.run(common + ["--benchmark", str(save), "--benchmark-ticks", str(ci["benchmark_ticks"]),
+                                 "--benchmark-runs", "1"], check=True, timeout=180)
     if ci["scenarios"] or ci["saves"]:
         if version_tuple(ci["factorio"]) < (2, 1, 24):
             raise ValueError("Native test scenarios/saves require Factorio >= 2.1.24")
@@ -288,9 +326,15 @@ def run_engine(mod, work):
             target.mkdir(exist_ok=True)
             for scenario in ci["scenarios"]:
                 shutil.copytree(test_root / "scenarios" / scenario, target / scenario)
-                subprocess.run(common + ["--test-scenario", f"{info['name']}/{scenario}"], check=True, timeout=180)
+                with report.case(f"{mod}: scenario {scenario}"):
+                    subprocess.run(common + ["--test-scenario", f"{info['name']}/{scenario}"], check=True, timeout=180)
         for fixture in ci["saves"]:
-            subprocess.run(common + ["--test-save", str(test_root / "saves" / fixture)], check=True, timeout=180)
+            with report.case(f"{mod}: save fixture {fixture}"):
+                subprocess.run(common + ["--test-save", str(test_root / "saves" / fixture)], check=True, timeout=180)
+    if not ci["scenarios"]:
+        report.record(f"{mod}: scenario fixtures", "skipped", "none configured")
+    if not ci["saves"]:
+        report.record(f"{mod}: save fixtures", "skipped", "none configured")
 
 
 def release_matrix(outputs):
@@ -368,22 +412,28 @@ def main():
     parser.add_argument("--work")
     parser.add_argument("--archive")
     parser.add_argument("--tag")
+    parser.add_argument("--report", help="Write completed check results as JSON (check, package, engine)")
     args = parser.parse_args()
+    report = TestReport(args.report)
     if args.command == "list":
         print(json.dumps([p.parent.name for p in sorted((ROOT / "mods").glob("*/info.json"))]))
     elif args.command == "release-matrix":
         print(json.dumps(release_matrix(json.loads(os.environ["RELEASE_OUTPUTS"]))))
     elif args.command == "check":
-        path, _, _ = validate(args.mod)
-        for file in path.rglob("*.lua"):
-            subprocess.run([os.getenv("LUAC", "luac5.2"), "-p", str(file)], check=True)
-        print(f"Validated {args.mod} metadata and Lua syntax")
+        with report.case(f"{args.mod}: metadata and release version consistency"):
+            path, _, _ = validate(args.mod)
+        files = sorted(path.rglob("*.lua"))
+        with report.case(f"{args.mod}: Lua 5.2 syntax ({len(files)} files)"):
+            for file in files:
+                subprocess.run([os.getenv("LUAC", "luac5.2"), "-p", str(file)], check=True)
     elif args.command == "package":
-        print(package(args.mod))
+        with report.case(f"{args.mod}: release ZIP packaging"):
+            archive = package(args.mod)
+        print(archive)
     elif args.command == "engine":
         if not args.work:
             parser.error("engine requires --work")
-        run_engine(args.mod, args.work)
+        run_engine(args.mod, args.work, report)
     elif args.command == "publish":
         if not args.archive or not args.tag:
             parser.error("publish requires --archive and --tag")

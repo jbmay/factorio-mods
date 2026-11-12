@@ -1074,10 +1074,10 @@ GCKI.show("Changed settings", event)
         -- Only locked vehicles are unminable
         if v.locker then
           GCKI.writeDebug("No: vehicle been locked. Making it unminable!")
-          v.entity.minable = false
+          v.entity.minable_flag = false
         else
           GCKI.writeDebug("Yes: making vehicle minable!")
-          v.entity.minable = true
+          v.entity.minable_flag = true
         end
       end
     end

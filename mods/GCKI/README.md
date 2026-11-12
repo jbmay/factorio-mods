@@ -36,7 +36,9 @@ their `GCKI` prefixes. The remote interface follows the new internal name.
 The fork conflicts with upstream `GCKI` to prevent duplicate prototypes and
 handlers. Automatic transfer of upstream save data is not implemented, and
 integrations that look for the original mod name require separate review.
-Factorio compatibility remains 2.0. `ci.json` pins the engine and dependency used for smoke tests;
+The maintained fork targets Factorio **2.1.24** or newer within the 2.1 series
+and requires **Pi-C_lib >= 2.1.0**. Vehicle locking uses the 2.1 script-controlled
+activation and mining flags. `ci.json` pins the engine and dependency used for smoke tests;
 `portal.json` records the upstream identity and first-publication metadata.
 See [shared development notes](../../docs/development.md) for credentials, coverage,
 and the release workflow.

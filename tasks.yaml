@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/defenseunicorns/maru-runner/v0.6.0/tasks.schema.json
+
+variables:
+  - name: TEST_IMAGE
+    default: local/factorio-mod-tests:latest
+  - name: MOD
+    default: ""
+  - name: TAG
+    default: ""
+
+tasks:
+  - name: default
+    description: Build the test image and run all tests, including Factorio save loading
+    actions:
+      - task: test
+
+  - name: build-test-image
+    description: Build the Linux amd64 image containing Python, Lua, and engine runtime dependencies
+    actions:
+      - cmd: docker build --platform linux/amd64 --tag "${TEST_IMAGE}" --file Dockerfile .
+
+  - name: test
+    description: Run automation tests, mod checks, and Factorio create/save-load tests (requires download credentials)
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          : "${FACTORIO_USERNAME:?Export FACTORIO_USERNAME for dependency downloads}"
+          : "${FACTORIO_TOKEN:?Export FACTORIO_TOKEN for dependency downloads}"
+          mkdir -p dist .test-results
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --mount "type=bind,source=$PWD/dist,target=/workspace/dist" \
+            --mount "type=bind,source=$PWD/.test-results,target=/results" \
+            --env FACTORIO_USERNAME --env FACTORIO_TOKEN \
+            "${TEST_IMAGE}" --mod "${MOD}"
+
+  - name: test-static
+    description: Run automation tests, metadata/Lua checks, and packaging without engine downloads or credentials
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          mkdir -p dist
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --mount "type=bind,source=$PWD/dist,target=/workspace/dist" \
+            "${TEST_IMAGE}" --mod "${MOD}" --static-only
+
+  - name: list-mods
+    description: Discover mod directories in the test image and write dist/mods.json
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          mkdir -p dist
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --entrypoint python \
+            "${TEST_IMAGE}" tools/mod_ci.py list > dist/mods.json
+
+  - name: release-matrix
+    description: Select released mods in the test image and write dist/releases.json
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          : "${RELEASE_OUTPUTS:?Set RELEASE_OUTPUTS to the Release Please outputs JSON}"
+          mkdir -p dist
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --env RELEASE_OUTPUTS \
+            --entrypoint python \
+            "${TEST_IMAGE}" tools/mod_ci.py release-matrix > dist/releases.json
+
+  - name: publish
+    description: Publish the tested ZIP using the same image (requires MOD, TAG, and FACTORIO_API_KEY)
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          : "${MOD:?Select a mod with --set MOD=directory}"
+          : "${TAG:?Select a release with --set TAG=component/vVERSION}"
+          : "${FACTORIO_API_KEY:?Export FACTORIO_API_KEY for portal publication}"
+          set -- dist/*.zip
+          if [ "$#" -ne 1 ] || [ ! -f "$1" ]; then
+            echo "Publishing requires exactly one tested ZIP in dist/" >&2
+            exit 1
+          fi
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --env FACTORIO_API_KEY --env GITHUB_REPOSITORY \
+            --entrypoint python \
+            "${TEST_IMAGE}" tools/mod_ci.py publish "${MOD}" --archive "$1" --tag "${TAG}"

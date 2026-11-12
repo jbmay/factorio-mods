@@ -1,5 +1,6 @@
 # Generated packages and local downloads
 /dist/
+/.test-results/
 *.zip
 !/tests/**/saves/*.zip
 

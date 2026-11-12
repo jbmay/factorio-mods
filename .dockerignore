@@ -1,0 +1,7 @@
+# Only the image definition and its entrypoint are needed in the build context.
+# Source and credentials are not baked into the image; tasks mount source at run time.
+**
+!Dockerfile
+!tools/
+tools/**
+!tools/run_container_tests.py

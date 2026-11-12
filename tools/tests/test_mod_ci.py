@@ -39,6 +39,21 @@ class ModCITests(unittest.TestCase):
     def write(self, name, data):
         (self.mod / name).write_text(json.dumps(data))
 
+    def test_report_retains_passes_and_marks_failure_without_claiming_success(self):
+        path = self.root / "report.json"
+        report = ci.TestReport(path)
+        with report.case("successful check"):
+            pass
+        with self.assertRaisesRegex(ValueError, "deliberate failure"):
+            with report.case("failing check"):
+                raise ValueError("deliberate failure")
+        report.record("optional fixture", "skipped", "none configured")
+        self.assertEqual(ci.read_json(path), [
+            {"name": "successful check", "status": "passed"},
+            {"name": "failing check", "status": "failed"},
+            {"name": "optional fixture", "status": "skipped", "detail": "none configured"},
+        ])
+
     def test_package_is_reproducible_and_excludes_development_files(self):
         (self.mod / "control.lua.bak").write_text("backup")
         (self.mod / "README.md").write_text("development")
@@ -124,6 +139,20 @@ class ModCITests(unittest.TestCase):
                 member.size = len(data)
                 tar.addfile(member, io.BytesIO(data))
         return buffer.getvalue()
+
+    @patch.object(ci.subprocess, "run")
+    @patch.object(ci, "request")
+    def test_failed_engine_load_is_reported_without_passing_tick_or_fixture_tests(self, request, run):
+        request.return_value = self.engine_tar("2.0.77")
+        run.side_effect = [None, ci.subprocess.CalledProcessError(1, "factorio --benchmark")]
+        report = ci.TestReport(self.root / "engine-report.json")
+        with self.assertRaises(ci.subprocess.CalledProcessError):
+            ci.run_engine("Demo", self.root / "work", report)
+        self.assertEqual(report.cases[-2:], [
+            {"name": "Demo: Factorio 2.0.77 mod initialization and new save creation", "status": "passed"},
+            {"name": "Demo: reload generated save and run 10 ticks", "status": "failed"},
+        ])
+        self.assertFalse(any("fixture" in case["name"] for case in report.cases))
 
     @patch.dict("os.environ", {"FACTORIO_USERNAME": "example", "FACTORIO_TOKEN": "test-token"})
     @patch.object(ci.subprocess, "run")

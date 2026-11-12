@@ -31,24 +31,19 @@ jobs:
         with:
           ref: ${{ inputs.ref }}
           persist-credentials: false
-      - uses: actions/setup-python@v7
-        with:
-          python-version: '3.13'
-      - name: Install Lua syntax checker
-        run: sudo apt-get update && sudo apt-get install --yes lua5.2
-      - name: Check and package
+      - uses: ./.github/actions/setup-maru
+      - name: Run credential-free checks with Maru
+        if: ${{ !inputs.engine }}
         env:
           MOD: ${{ inputs.mod }}
-        run: |
-          python tools/mod_ci.py check "$MOD"
-          python tools/mod_ci.py package "$MOD"
-      - name: Test in Factorio
+        run: maru run test-static --set "MOD=$MOD"
+      - name: Run full checks with Maru
         if: inputs.engine
         env:
           MOD: ${{ inputs.mod }}
           FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
           FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
-        run: python tools/mod_ci.py engine "$MOD" --work "$RUNNER_TEMP/factorio-test"
+        run: maru run test --set "MOD=$MOD"
       - name: Explain fork PR coverage
         if: ${{ !inputs.engine }}
         run: echo 'Fork PR checks cover metadata, Lua syntax and packaging. Engine tests run after merge and before publishing.' >> "$GITHUB_STEP_SUMMARY"
@@ -62,5 +57,6 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: logs-${{ inputs.mod }}
-          path: ${{ runner.temp }}/factorio-test/data/factorio-current.log
+          path: .test-results/**/data/factorio-current.log
+          include-hidden-files: true
           if-no-files-found: ignore

@@ -54,9 +54,9 @@ GCKI.writeDebug("Removed invalid vehicle %s!", {index})
     render_object = GCKI.ascertain_rendering(vehicle.lock_icon)
     if vehicle.locker then
       GCKI.writeDebug("Vehicle is locked")
-      v.active = false
+      v.disabled_by_script = true
       v.operable = false
-      v.minable = false
+      v.minable_flag = false
       GCKI.writeDebug("Active: %s\tOperable: %s\tMinable: %s",
                       {v.active, v.operable, v.minable})
 
@@ -74,10 +74,10 @@ GCKI.writeDebug("Removed invalid vehicle %s!", {index})
     -- Properly unlock vehicles that don't have a locker
     else
       GCKI.writeDebug("Vehicle is unlocked")
-      v.active = true
+      v.disabled_by_script = false
       v.operable = true
       -- If setting from Unminable Vehicles is enabled, no vehicle may be mined!
-      v.minable = storage.UnminableVehicles and false or true
+      v.minable_flag = storage.UnminableVehicles and false or true
 
       -- Remove "locked" icons from unlocked vehicles!
       --~ if vehicle.lock_icon and rendering.is_valid(vehicle.lock_icon) then

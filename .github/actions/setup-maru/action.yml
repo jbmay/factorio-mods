@@ -1,0 +1,32 @@
+name: Set up Maru
+description: Install the pinned Maru release and verify its release checksum
+runs:
+  using: composite
+  steps:
+    - name: Download and verify Maru
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        set -euo pipefail
+        version=$(cat .maru-version)
+        [[ "$version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+        download=$(mktemp -d "$RUNNER_TEMP/maru-download.XXXXXX")
+        trap 'rm -rf -- "$download"' EXIT
+        assets=$(gh release view "$version" --repo defenseunicorns/maru-runner --json assets)
+        binary=$(jq -er '
+          [.assets[].name | select(test("(?i)^maru-runner_.*_linux_(amd64|x86_64)$"))] |
+          if length == 1 then .[0] else error("Expected one Linux amd64 binary") end' <<< "$assets")
+        checksums=$(jq -er '
+          [.assets[].name | select(test("(?i)checksums.*\\.txt$"))] |
+          if length == 1 then .[0] else error("Expected one release checksum file") end' <<< "$assets")
+        gh release download "$version" --repo defenseunicorns/maru-runner \
+          --pattern "$binary" --pattern "$checksums" --dir "$download"
+        awk -v name="$binary" '$2 == name || $2 == "*" name { print }' \
+          "$download/$checksums" > "$download/verify.txt"
+        test "$(wc -l < "$download/verify.txt")" -eq 1
+        (cd "$download" && sha256sum --check verify.txt)
+        mkdir -p "$RUNNER_TEMP/maru-bin"
+        install -m 0755 "$download/$binary" "$RUNNER_TEMP/maru-bin/maru"
+        "$RUNNER_TEMP/maru-bin/maru" version
+        echo "$RUNNER_TEMP/maru-bin" >> "$GITHUB_PATH"

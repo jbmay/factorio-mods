@@ -19,7 +19,8 @@ common_vehicle.lock_vehicle = function(vehicle)
   if vehicle and vehicle.valid then
     GCKI.writeDebug("Yes: turning off properties!")
     -- Default locked status
-    for p, property in pairs({"active", "operable", "minable"}) do
+    vehicle.disabled_by_script = true
+    for p, property in pairs({"operable", "minable_flag"}) do
 GCKI.show("vehicle["..property.."]", vehicle[property])
       vehicle[property] = false
 GCKI.show("New value", vehicle[property])
@@ -39,7 +40,8 @@ common_vehicle.unlock_vehicle = function(vehicle)
   ------------------------------------------------------------------------------------
   -- Set properties to default unlocked status!
   if vehicle and vehicle.valid then
-    for p, property in pairs({"active", "operable", "minable"}) do
+    vehicle.disabled_by_script = false
+    for p, property in pairs({"operable", "minable_flag"}) do
       vehicle[property] = true
     end
     GCKI.writeDebug("Unlocked %s!", {GCKI.argprint(vehicle)})
@@ -53,7 +55,7 @@ common_vehicle.unlock_vehicle = function(vehicle)
     -- "Space Exploration" will deactive all vehicles if they are in outer space!
     if GCKI_mods.se_vehicle_is_in_space(vehicle) then
 
-      vehicle.active      = false
+      vehicle.disabled_by_script = true
       GCKI.writeDebug("Made %s inactive (Reason: Compatibility with \"Space Exploration\")",
                       {GCKI.argprint(vehicle)})
     end
@@ -61,7 +63,7 @@ common_vehicle.unlock_vehicle = function(vehicle)
     -- "Unminable Vehicles"
     -- If "unminable_vehicles_make_unminable" is enabled, vehicles are never minable!
     if mod.mod_compatibility.UnminableVehicles then
-      vehicle.minable     = false
+      vehicle.minable_flag = false
       GCKI.writeDebug("Made %s inactive (Reason: Compatibility with \"Unminable Vehicles\")",
                       {GCKI.argprint(vehicle)})
     end
