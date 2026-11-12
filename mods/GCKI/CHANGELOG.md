@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.3.0](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.2.1...gcki-continued/v2.3.0) (2026-11-12)
+
+
+### Features
+
+* add admin only clear-owner command ([a9fcbe4](https://github.com/jbmay/factorio-mods/commit/a9fcbe4f0c3a101e5c87936ae19e89a3226872ac))
+* allow passengers in locked vehicles ([264f4ad](https://github.com/jbmay/factorio-mods/commit/264f4ad4211b0191c91bfc3a5a008f5582094ae5))
+* auto-unlock vehicle for owner and fix changelog missing entries ([e5912b6](https://github.com/jbmay/factorio-mods/commit/e5912b60ab7b8bfdeedd7f0d2af8db0a765df60a))
+* gcki/auto unlock ([58ed72f](https://github.com/jbmay/factorio-mods/commit/58ed72f386b5f815340bc76ea04512d5240b57f5))
+
 ## [2.2.1](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.2.0...gcki-continued/v2.2.1) (2026-11-12)
 
 
