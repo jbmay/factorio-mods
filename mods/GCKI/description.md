@@ -9,18 +9,26 @@ This mod is based on [Gizmos Car Keys](https://mods.factorio.com/mod/Gizmos_Car_
 # Usage #
 The keys will be available as long as an unlock technology has been researched. Usually that will be Automobilism, but there may be others depending on the mods you are using (e.g. Ships if [Cargo Ships](https://mods.factorio.com/mod/cargo-ships) is active). Take the keys and click on a vehicle to claim it. Click *on the same vehicle* again to lock or unlock it. By using the keys *on another vehicle*, you replace your claimed vehicle on that planet when Space Age is enabled, or your single global vehicle without Space Age. (Hint: If you want to exchange vehicles, you should lock your old vehicle before giving it up! As of version 1.1.2, any unlocked vehicle without a player character inside can be claimed by *any* player. In other words, vehicles can be stolen by another force!)
 
-If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach.
-(Hint:
+If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach. With Space Age enabled, this summons only the vehicle claimed on your current planet.
 
-In contrast to the original mod, this one also supports vehicle grids and everything else a vehicle might contain. It also is possible to summon vehicles to another surface; driver and player will be teleported along  with  the vehicle unless they have chosen to be left on the original surface via a per-player runtime setting.
+This mod supports vehicle grids and everything else a vehicle might contain. Without Space Age, the single globally claimed vehicle can also be summoned to another surface. Other players riding in the vehicle travel with it unless they have chosen to stay on the original surface through their per-player runtime setting.
 
 Other than the original mod, this one should be safe to use in multiplayer games.
 
 # Does it work with other mods? #
 ## Space Age ##
-With Space Age enabled, each player can claim one vehicle per planet. Clicking a vehicle with the keys claims it or toggles its lock; clicking an empty position summons the vehicle claimed on the current planet. Claims on other planets are preserved, and vehicles cannot be summoned between planets. Custom planets are supported; non-planet surfaces have independent assignments.
+Space Age is detected automatically. Each player can claim **one vehicle per planet**, so you can keep a car on Nauvis, a tank on Vulcanus, and another vehicle on each of the other planets.
 
-The shortcut and keyboard input cannot be used on space platforms. Keys also cannot be used while remotely viewing another surface; return to your character's surface first. Without Space Age, the original single global vehicle behavior remains.
+- Use the car-key shortcut to take out the keys, then click a vehicle to claim it. Click your claimed vehicle again to lock or unlock it.
+- Click a free position within reach to summon the vehicle claimed on your current planet. **If you have no vehicle claimed there, nothing is summoned.** Vehicles on other planets stay where they are.
+- Claiming another vehicle replaces only your assignment on that planet. Assignments on other planets are preserved. Lock your old vehicle before replacing it if you want it to remain locked afterward.
+- Existing claims in a `gcki-continued` save are retained on the planet where the vehicle is located when the updated mod loads. Previously locked but unclaimed vehicles stay locked; they are not automatically assigned to planets.
+
+**Space platforms:** the car-key shortcut is disabled on platforms. The keyboard shortcut and key tool also reject platform use, so you cannot summon a vehicle onto a platform. The shortcut becomes available again when you return to a supported surface and its unlock technology is researched.
+
+Keys cannot be used while remotely viewing a different surface; return to your character's surface first. Custom planets are supported, and surfaces without an associated planet have their own separate assignments.
+
+Without Space Age, each player has **one globally claimed vehicle**, retaining the original claiming, locking, and summoning behavior.
 
 ## Incompatible mods ##
 There have been no reports yet that this mod would cause errors if used together with another mod, so I guess it's  safe to use.

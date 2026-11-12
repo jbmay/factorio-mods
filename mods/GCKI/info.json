@@ -5,7 +5,7 @@
     "author": "Pi-C",
     "contact": "",
     "homepage": "https://forums.factorio.com/viewtopic.php?f=190&t=77332",
-    "description": "Tired of running to your vehicle? Then let it come to you!\nThis mod is based on \"Gizmos Car Keys\" by AoDGizmo. It works with most modded car and spider-vehicle prototypes -- not just vanilla cars.",
+    "description": "Claim, lock and summon your vehicle with car keys. With Space Age enabled, keep one claimed vehicle per planet and summon only the vehicle on your current planet. Keys cannot be used on space platforms. Without Space Age, keep one globally claimed vehicle. Supports most modded car and spider-vehicle prototypes. Based on Gizmos Car Keys by AoDGizmo.",
     "factorio_version": "2.1",
     "dependencies": [
         "base >= 2.1.24",
