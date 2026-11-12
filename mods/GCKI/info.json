@@ -1,22 +1,22 @@
 {
- "name": "gcki-continued",
- "version": "2.0.1",
- "title": "Gizmos Car Keys (continued)",
- "author": "Pi-C",
- "contact": "",
- "homepage": "https://forums.factorio.com/viewtopic.php?f=190&t=77332",
- "description": "Tired of running to your vehicle? Then let it come to you!\nThis mod is based on \"Gizmos Car Keys\" by AoDGizmo. It works with most modded car and spider-vehicle prototypes -- not just vanilla cars.",
- "factorio_version": "2.1",
- "dependencies": [
-    "base >= 2.1.24",
-    "Pi-C_lib >= 2.1.0",
-    "? aai-programmable-vehicles",
-    "? SchallTransportGroup",
-    "? cargo-ships",
-    "? autodrive",
-    "? DMV_Directional_Movement_Vehicles",
-    "? UnminableVehicles",
-    "! VehicleValet",
-    "! GCKI"
- ]
+    "name": "gcki-continued",
+    "version": "2.1.0",
+    "title": "Gizmos Car Keys (continued)",
+    "author": "Pi-C",
+    "contact": "",
+    "homepage": "https://forums.factorio.com/viewtopic.php?f=190&t=77332",
+    "description": "Tired of running to your vehicle? Then let it come to you!\nThis mod is based on \"Gizmos Car Keys\" by AoDGizmo. It works with most modded car and spider-vehicle prototypes -- not just vanilla cars.",
+    "factorio_version": "2.1",
+    "dependencies": [
+        "base >= 2.1.24",
+        "Pi-C_lib >= 2.1.0",
+        "? aai-programmable-vehicles",
+        "? SchallTransportGroup",
+        "? cargo-ships",
+        "? autodrive",
+        "? DMV_Directional_Movement_Vehicles",
+        "? UnminableVehicles",
+        "! VehicleValet",
+        "! GCKI"
+    ]
 }
