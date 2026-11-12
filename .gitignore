@@ -1,0 +1,18 @@
+# Generated packages and local downloads
+/dist/
+*.zip
+!/tests/**/saves/*.zip
+
+# Editor backups and caches
+*.bak
+*~
+*.swp
+*.swo
+.luacheckcache
+__pycache__/
+*.pyc
+
+# Local credentials
+.env
+.env.*
+!.env.example

@@ -1,0 +1,57 @@
+name: Check mods
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    outputs:
+      mods: ${{ steps.mods.outputs.mods }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Test shared automation
+        run: python -m unittest discover -s tools/tests -v
+      - id: mods
+        name: Discover mods
+        run: echo "mods=$(python tools/mod_ci.py list)" >> "$GITHUB_OUTPUT"
+
+  mods:
+    needs: discover
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: ${{ fromJSON(needs.discover.outputs.mods) }}
+    uses: ./.github/workflows/test-mod.yml
+    with:
+      mod: ${{ matrix.mod }}
+      ref: ${{ github.sha }}
+      # Fork PRs run syntax/package checks without receiving download credentials.
+      engine: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    secrets: inherit
+
+  checks:
+    name: All mod checks
+    if: always()
+    needs: [discover, mods]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require successful checks
+        env:
+          DISCOVER: ${{ needs.discover.result }}
+          MODS: ${{ needs.mods.result }}
+        run: test "$DISCOVER" = success && test "$MODS" = success

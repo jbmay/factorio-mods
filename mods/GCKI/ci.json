@@ -1,0 +1,9 @@
+{
+  "factorio": "2.0.77",
+  "dependencies": {
+    "Pi-C_lib": "2.0.3"
+  },
+  "scenarios": [],
+  "saves": [],
+  "benchmark_ticks": 600
+}

@@ -1,0 +1,15 @@
+----------------------------------------------------------------------------
+--                  Sources of the images in this directory               --
+----------------------------------------------------------------------------
+
+
+Gizmos Car Keys  (aodgizmo):
+----------------------------
+car-key.png:       PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced
+car-key-64.png:    PNG image data, 55 x 64, 8-bit/color RGBA, non-interlaced
+
+
+Gizmos Car Keys - Zahnfeechen Patch (Zahnfeechen):
+--------------------------------------------------
+car-key-zf.png:    PNG image data, 32 x 32, 8-bit/color RGBA, non-interlaced
+car-key-64-zf.png: PNG image data, 64 x 64, 8-bit/color RGBA, non-interlaced

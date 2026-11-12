@@ -1,0 +1,68 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["config:recommended", "helpers:pinGitHubActionDigests"],
+  "enabledManagers": ["github-actions", "custom.regex"],
+  "automerge": false,
+  "semanticCommits": "enabled",
+  "semanticCommitType": "fix",
+  "customDatasources": {
+    "factorio": {
+      "defaultRegistryUrlTemplate": "https://factorio.com/api/latest-releases",
+      "transformTemplates": ["{\"releases\":[{\"version\":stable.headless}]}" ]
+    },
+    "factorio-series": {
+      "defaultRegistryUrlTemplate": "https://factorio.com/api/latest-releases",
+      "transformTemplates": ["{\"releases\":[{\"version\":$join([$split(stable.headless, '.')[0], $split(stable.headless, '.')[1]], '.')}]}" ]
+    },
+    "factorio-mod": {
+      "defaultRegistryUrlTemplate": "https://mods.factorio.com/api/mods/{{packageName}}/full",
+      "transformTemplates": ["{\"releases\":[$map(releases, function($r){{\"version\":$r.version}})]}"]
+    }
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^mods/[^/]+/ci\\.json$/"],
+      "matchStrings": ["\"factorio\"\\s*:\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "depNameTemplate": "factorio",
+      "datasourceTemplate": "custom.factorio",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^mods/[^/]+/info\\.json$/"],
+      "matchStrings": ["\"factorio_version\"\\s*:\\s*\"(?<currentValue>\\d+\\.\\d+)\""],
+      "depNameTemplate": "factorio-series",
+      "datasourceTemplate": "custom.factorio-series",
+      "versioningTemplate": "loose"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^mods/[^/]+/ci\\.json$/"],
+      "matchStrings": ["\"(?<depName>[A-Za-z0-9_-]+)\"\\s*:\\s*\"(?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "datasourceTemplate": "custom.factorio-mod",
+      "versioningTemplate": "semver"
+    },
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/^mods/[^/]+/info\\.json$/"],
+      "matchStrings": ["\"(?:\\? |\\(\\?\\) |~ |\\+ )?(?<depName>[A-Za-z0-9_-]+) >= (?<currentValue>\\d+\\.\\d+\\.\\d+)\""],
+      "datasourceTemplate": "custom.factorio-mod",
+      "versioningTemplate": "semver"
+    }
+  ],
+  "packageRules": [
+    {
+      "matchDatasources": ["custom.factorio-mod"],
+      "matchPackageNames": ["factorio", "base", "core"],
+      "enabled": false
+    },
+    {
+      "matchDatasources": ["custom.factorio", "custom.factorio-series", "custom.factorio-mod"],
+      "groupName": "Factorio compatibility",
+      "groupSlug": "factorio-compatibility",
+      "commitMessageTopic": "Factorio compatibility",
+      "prBodyNotes": ["Review the game version, dependency releases, and mod API changes together. Engine checks must pass before releasing; metadata changes alone do not port a mod."]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "separate-pull-requests": true,
+  "include-component-in-tag": true,
+  "include-v-in-tag": true,
+  "tag-separator": "/",
+  "packages": {
+    "mods/GCKI": {
+      "component": "gcki-continued",
+      "package-name": "gcki-continued",
+      "extra-files": [
+        {
+          "type": "json",
+          "path": "info.json",
+          "jsonpath": "$.version"
+        }
+      ]
+    }
+  }
+}

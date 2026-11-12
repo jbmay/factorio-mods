@@ -1,0 +1,86 @@
+name: Publish one mod
+
+on:
+  workflow_call:
+    inputs:
+      mod:
+        required: true
+        type: string
+      tag:
+        required: true
+        type: string
+    secrets:
+      FACTORIO_USERNAME:
+        required: true
+      FACTORIO_TOKEN:
+        required: true
+      FACTORIO_API_KEY:
+        required: true
+  workflow_dispatch:
+    inputs:
+      mod:
+        description: Directory name under mods/
+        required: true
+        type: string
+      tag:
+        description: Existing release tag (for example gcki-continued/v2.0.2)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: portal-${{ inputs.mod }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/test-mod.yml
+    with:
+      mod: ${{ inputs.mod }}
+      ref: refs/tags/${{ inputs.tag }}
+      engine: true
+    secrets:
+      FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
+      FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - uses: actions/download-artifact@v8
+        with:
+          name: package-${{ inputs.mod }}
+          path: dist
+      - name: Require an existing published GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = false
+      - name: Publish tested package to the mod portal
+        env:
+          MOD: ${{ inputs.mod }}
+          TAG: ${{ inputs.tag }}
+          FACTORIO_API_KEY: ${{ secrets.FACTORIO_API_KEY }}
+        run: |
+          shopt -s nullglob
+          packages=(dist/*.zip)
+          test "${#packages[@]}" -eq 1
+          python tools/mod_ci.py publish "$MOD" --archive "${packages[0]}" --tag "$TAG"
+      - name: Attach tested package to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: gh release upload "$TAG" dist/*.zip --clobber

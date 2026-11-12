@@ -1,0 +1,66 @@
+name: Test one mod
+
+on:
+  workflow_call:
+    inputs:
+      mod:
+        required: true
+        type: string
+      ref:
+        required: true
+        type: string
+      engine:
+        default: true
+        type: boolean
+    secrets:
+      FACTORIO_USERNAME:
+        required: false
+      FACTORIO_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test ${{ inputs.mod }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref }}
+          persist-credentials: false
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.13'
+      - name: Install Lua syntax checker
+        run: sudo apt-get update && sudo apt-get install --yes lua5.2
+      - name: Check and package
+        env:
+          MOD: ${{ inputs.mod }}
+        run: |
+          python tools/mod_ci.py check "$MOD"
+          python tools/mod_ci.py package "$MOD"
+      - name: Test in Factorio
+        if: inputs.engine
+        env:
+          MOD: ${{ inputs.mod }}
+          FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
+          FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
+        run: python tools/mod_ci.py engine "$MOD" --work "$RUNNER_TEMP/factorio-test"
+      - name: Explain fork PR coverage
+        if: ${{ !inputs.engine }}
+        run: echo 'Fork PR checks cover metadata, Lua syntax and packaging. Engine tests run after merge and before publishing.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ inputs.mod }}
+          path: dist/*.zip
+          if-no-files-found: error
+      - name: Save engine diagnostics
+        if: ${{ always() && inputs.engine }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: logs-${{ inputs.mod }}
+          path: ${{ runner.temp }}/factorio-test/data/factorio-current.log
+          if-no-files-found: ignore

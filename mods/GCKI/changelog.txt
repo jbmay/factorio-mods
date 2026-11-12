@@ -1,0 +1,734 @@
+---------------------------------------------------------------------------------------------------
+Version: 2.0.1
+Date: 2025-09-08
+
+  Info:
+    - Bumped dependency on Pi-C_lib to ">= 2.0.3".
+
+  Bugfixes:
+    - Fixed that names of items created in prototypes/3-recreate-car-items.lua would contain illegal character '+' (legal character in Factorio 1.x, but only alnum, dash, and underscore may be used in Factorio 2.0), and made the items really 'hidden' again. (https://mods.factorio.com/mod/autodrive/discussion/686f417b05d87e3cab4b6a8a)
+
+    - Fixed error when raising custom event. Since version 2.0.0, we create use "custom-event" prototypes to define custom events, so the old way of generating numeric event IDs at runtime and raising events by this ID (stored in a global table) doesn't work anymore.
+
+  Changes:
+    - Added conflict with "VehicleValet" because it provides similar functionality as GCKI, but works differently and doesn't respect our locked status of vehicles.
+
+  Locale:
+    - Sourced out strings for debugging commands /GCKI-is-event-active and /GCKI-show-active-events to Pi-C_lib.
+
+---------------------------------------------------------------------------------------------------
+Version: 2.0.0
+Date: 2025-06-21
+
+  Info:
+    - Finally updated the mod for Factorio 2.0!
+
+  Compatibility:
+    - Added dependency on a new library mod (outsourced some code I've used in most of my other mods).
+    - Blacklisted vehicle prototype from "Maraxsis".
+
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.16
+Date: 2024-08-24T1 9:00:00+02:00
+
+  Bugfixes:
+    - Fixed crashes in response to on_player_changed_force and on_research_finished due to not adjusting names of called functions in code copied from another file. A big thank you to LCStark for posting a fix on the mod portal's discussion board while I was on vacation! (https://mods.factorio.com/mod/GCKI/discussion/66c0695bb598f8257cb1224b, https://mods.factorio.com/mod/GCKI/discussion/66c60a8d23fd1f07b8129f23)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.15
+Date: 2024-08-17T00:15:00+02:00
+
+  Minor Features:
+    - Added custom input that will put the car keys into your cursor. It's still undefined, so you'll have to set it up yourself in Main menu-->Controls! (https://mods.factorio.com/mod/GCKI/discussion/65cbbd82031af28c651b3add)
+
+  Changes:
+    - Synced debugging functions with my WIP version of Autodrive.
+    - Prepared infrastructure for custom inputs so that new ones can be added easily, should that ever become necessary.
+
+  Bugfixes:
+    - Used luachecker to find undeclared, unused, and overshadowed variables. As we error on accessing undeclared variables, this should prevent some crashes that were just waiting to happen even though nobody has reported such a crash yet.
+    - Fixed migration file 01_01_08-store_vehicle_colors.lua to really store the color of all existing vehicles if GCKI is added to an existing game.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.14
+Date: 2024-02-04T09:55:00+02:00
+
+  Bugfixes:
+    - Fixed crash when player entered vehicle that already had been claimed by another player. (https://mods.factorio.com/mod/GCKI/discussion/65be578fe0be3db6233a9707)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.13
+Date: 2024-01-14T07:00:00+02:00
+
+  Bugfixes:
+    - Fixed crash in on_configuration_changed while initializing data of force that had players, but no players connected to the game. (https://mods.factorio.com/mod/GCKI/discussion/65a246aaada24adb62b22ef1)
+
+    - Fixed that force data of the old force would be kept when the last connected player on it changed to another force. This prevents that handlers for GUI and selection tool events are disabled if no force with connected players has researched our unlock tech, or if no player on such a force has claimed/locked vehicles.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.12
+Date: 2024-01-11T17:45:00+02:00
+
+  Bugfixes:
+    - Fixed that checking the area for colliding entities when placing a summoned vehicle would find all entities in the area, without considering their collision_mask. This resulted in vehicles colliding with hidden entities from Nullius that had huge collision boxes, which means the vehicles couldn't be placed although the area looked empty. (https://mods.factorio.com/mod/GCKI/discussion/6599a88932f1db7857bee10e)
+    - Fixed that obsolete entries wouldn't be removed from global.owners and global.lockers.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.11
+Date: 2024-01-03T00:35:00+02:00
+
+  Bugfixes:
+    - Fixed some references to localized strings that don't exist (wrong name or category).
+    - Fixed that force data would not be initialized if a player changed forces, and was the only player on the new force.
+
+  Changes:
+    - Improved position check when summoning vehicles. LuaSurface::can_place_entity() checks only whether the target location has space for vehicles pointing north. We now also look for entities in the rotated area to make sure that there really is nothing that could collide with the summoned vehicle.
+
+    - By default, summoned vehicles will be placed with their original orientation. If you summon the vehicle using alt-select (Shift + Left Mouse Button), the vehicle will be rotated so it matches the orientation of your character. If you are in another vehicle which is supported by GCKI, the summoned vehicle will use that vehicle's orientation. If you are inside the summoned vehicle or in a vehicle that is not supported by GCKI (e.g. trains), the summoned vehicle will keep its orientation. (https://mods.factorio.com/mod/GCKI/discussion/65860b608146ffe803935074)
+
+    - Added per-player setting to invert the behaviour (summoned vehicles use the player character's/vehicle's orientation by default and keep the orientation with alt-select).
+
+  Compatibility:
+    - If a player enters a force from "Blueprint Sandboxes", we will hide the player's GUIs and disable the  player's shortcut until the player returns to the original force.
+
+  Localization:
+    - Removed default values from mod setting descriptions. This has been obsolete since the reset buttons for each setting have been added to the game a long time ago.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.10
+Date: 2023-11-25T11:15:00+02:00
+
+  Compatibility:
+    - The recipe for the monowheel from IR3 required a green circuit, which comes so late in the research tree that it rendered the monowheel useless. We now ignore the monowheel recipe. (https://mods.factorio.com/mod/GCKI/discussion/653210fc266c0d86192e246e)
+    - Characters that don't have character.player, but do have character.associated_player won't be regarded as  dummy characters any longer. This should solve an issue with Nullius when players switch characters while riding in a vehicle. (https://mods.factorio.com/mod/GCKI/discussion/65587857164d6a8d06fde2be)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.9
+Date: 2023-10-18T18:32:00+02:00
+
+  Bugfixes:
+    - Fixed crash when trying to enter/leave a vehicle of a prototype not supported by GCKI (e.g. rolling stock) while Autodrive was not active. (https://mods.factorio.com/mod/GCKI/discussion/652fec5d19c5581fa1442d7d)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.8
+Date: 2023-10-17T10:05:00+02:00
+
+  Bugfixes:
+    - Fixed that spider-vehicles wouldn't show their path anymore once they have been un-claimed. The path color is the same as the entity color, so using {a=0} as default color of the vehicle made the path rendering invisible; the new default color is {a=0.5}. (https://mods.factorio.com/mod/GCKI/discussion/648f5f912878436424fd2833)
+
+  Changes:
+    - We'll now ignore vehicle prototypes where allow_passengers is false because such vehicles may have neither driver nor passenger.
+    - Will now also register renamed vehicles that are currently neither claimed nor locked.
+    - Added handler for custom event on_spidertron_switched from "Spidertron Weapon Switcher".
+    - Added handler for new (as of version 1.1.83) event on_entity_color_changed. There are still some issues with the "Custom Color" mod; waiting for an update on the other end before I can tackle this.
+    - Replaced most references to game.players[], which is shorter to write, with game.get_player(), which is faster to run.
+    - In on_configuration_changed, we now exchange the following data with Autodrive: list of supported vehicle prototypes; original colors of vehicles based on prototypes supported by Autodrive/GCKI; custom vehicle names set by Autodrive/GCKI; Autodrive owner and GCKI owner/locker of vehicles controlled by both mods.
+    - Improved cleanup of obsolete mod data.
+    - We now inform Autodrive about vehicles added to/removed from our GUI. Likewise, we store and update info about Autodrive owners with the respective vehicle when it is added/removed by Autodrive. This way, we don't have to use remote calls each time one of the mods wants to update their GUI or rename/recolor a vehicle.
+    - If both GCKI and Autodrive are active, the events on_entity_color_changed and on_entity_renamed will be handled only by us (we will tell Autodrive to update its data).
+    - Bumped dependency on base to >=1.1.85. (Required for on_entity_color_changed, but as version 1.1.91 is already stable, this is a mere formality.)
+    - Bumped optional dependency on Autodrive to >=1.1.6, so the two mods can interact correctly.
+
+  GUI:
+    - If a vehicle doesn't have a custom name, its unit_number will be shown instead in the header of camera and minimap GUIs. The unit_number may change if a vehicle has been exchanged by another mod; however, this shouldn't cause too much confusion as the unit_number is also shown on the main GUI if the vehicle has no custom name.
+
+  Modding:
+    - Removed deprecated custom event "on_GCKI_teleported_vehicle". Listen to defines.events.script_raised_teleported instead! It will be raised with the following data:
+      {
+        entity              = LuaEntity,
+        old_surface_index   = uint,
+        old_position        = MapPosition,
+        name_render_text_id = uint (optional, ID of LuaRendering for custom name)
+        mod_name            = "GCKI" (fixed string added by Factorio)
+      }
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.7
+Date: 2023-05-29T00:15:00+02:00
+
+  Changes:
+    - Bumped optional dependency on Autodrive to version 1.1.5, so that the game won't crash because of different setting types for the "Render color" setting if both mods are active. (https://mods.factorio.com/mod/autodrive/discussion/6472c227c2556e5ec1cec5f6 )
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.6
+Date: 2023-05-25T17:05:26+02:00
+
+  Changes:
+    - GUI events used to be enabled or disabled together with the shortcut events when research of the/an unlock tech had been finished or reverted or a force was reset. Now we only enable GUI events if at least one player on a force that has unlocked the keys has stored data for at least one GUI.
+    - Added global settings for dealing with force resets and reverting research of the unlock tech(s). Depending on the setting, vehicles will be retained until the force has researched the unlock tech again, or the players on the force will lose ownership of their vehicles for good and any vehicles they have locked will be unlocked again.
+    - Change per-user setting "Render color" to new (as of Factorio 1.1.77) type "color-setting".
+    - Requires Factorio >=1.1.77.
+
+  Compatibility:
+    - Forced startup setting of "Spidertron Weapon Switcher" for alternate items to be true.
+    - Blacklisted dummy prototypes of "Spidertron Enhancements".
+    - Blacklisted spider-vehicle from "Companion Drones".
+    - Blacklisted car-prototype from "Long range delivery drones".
+
+  Modding:
+    - Deprecated custom event "on_GCKI_teleported_vehicle" in favor of the new vanilla "script_raised_teleported" event (added in Factorio 1.1.77). We'll still raise the custom event for now, but it will be removed in one of the next versions.
+    - As script_raised_teleported will be raised manually, it may contain the additional argument "name_render_text_id".
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.5
+Date: 2023-01-11T00:38:00+02:00
+
+
+  Bugfixes:
+    - Fixed that our super-secret dummy items were visible in logistic requests etc. (https://mods.factorio.com/mod/GCKI/discussion/63b62b1985fdf8082ef9cad1)
+    - Fixed crash on opening the Tips & Tricks tutorial scenario. Thanks to robot256 for directing my attention to this bug which probably affects all my mods! (https://mods.factorio.com/mod/GCKI/discussion/63b62197d41edfb807a63fba)
+    - GCKI won't add missing difficulties to arbitrary recipes any more when looking for results or adding ingredients. It also won't replace recipe.result with recipe.results. Unifying recipes seemed to be a good idea to avoid problems when accessing the recipes, but apparently that will cause problems for other mods. (https://mods.factorio.com/mod/GCKI/discussion/63ac82786efd9fce5dcbdc8d)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.4
+Date: 2023-01-03T14:35:00+02:00
+
+
+  Bugfixes:
+    - Fixed that game wouldn't load with Russian localization because there were two duplicates of string names. (https://mods.factorio.com/mod/GCKI/discussion/603a0735db404769917d7e68)
+    - Fixed crash when trying to access a value in a non-existant table -- in a debugging function, of all places! (https://forums.factorio.com/viewtopic.php?p=578984#p578984, https://mods.factorio.com/mod/GCKI/discussion/6213a6ecd1b7704417c024aa)
+    - Fixed crash caused by a typo in the handler for on_runtime_mod_setting_changed. (Thanks to robot256 for finding this!)
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.3
+Date: 2022-12-22T23:23:00+02:00
+
+
+  Bugfixes:
+    - Fixed that shortcut keys and GUI toggle button were not working after updating. Forgot to register the events in on_configuration_changed… (https://mods.factorio.com/mod/GCKI/discussion/63a39388edbbe95a09f9870d)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.2
+Date: 2022-12-21T21:30:00+02:00
+
+  Info:
+    - It's been a while since the last update -- close to two years! While a lot has changed under the hood, there are also some changes that you will probably notice immediately if you've used GCKI before. The two most conspicuous change probably are that you can now manage your vehicles via a GUI and that you can't craft the car-keys any longer -- they have been replaced with a shortcut. While you still can use the keys to claim, lock/unlock, or summon a vehicle by clicking on the vehicle or on the ground, you now can also select all the vehicles in a given area at once. Moreover, you finally can use GCKI to claim spider-vehicles as well as cars! I hope you'll enjoy the new stuff. Have a lot of fun playing with the new mod! :-D
+
+  Major features:
+    - GCKI now supports spidertrons!
+
+    - You can now use GUIs to manage your vehicles!
+
+    - The keys are now on the shortcut bar, not an item you can craft and put into an inventory. There's still research required to unlock the shortcut. Click on an individual vehicle to claim or lock/unlock it, or on the ground to summon the vehicle you've claimed. Select an area on the ground to act on various vehicles at once (if possible). Using alt-selection (usually SHIFT+Left mouse button) will add vehicles to an existing selection, using reverse-selection (usually Right mouse button) will remove the selected vehicles.
+
+    - Can't tell your three cars apart? Then give them custom names! You can always (re)name a vehicle that you've claimed or locked; unclaimed and unlocked vehicles without a name can be named by anybody; once a vehicle has a name, it can be changed/removed only by the player who originally named it, or by the current owner/locker of the vehicle. Custom names are unique and will persist until the vehicle is destroyed or renamed. Names of vehicles that are temporarily unavailable (e.g. when loaded onto a vehicle wagon) will be reserved until the vehicle is destroyed for good (e.g. when the vehicle wagon carrying it is destroyed). Custom names will be shared with Autodrive, if it is active.
+
+    - There are commands you can use to unlock (make active, operable, and minable) or reset (unlock + set color to default and remove custom names) all or selected vehicles. Admins can change all vehicles available in the game, normal player only vehicles that they have claimed, locked, or named. You can also unlock/reset a specific vehicle by specifying its unit_number or custom name.
+
+    - You can only enter, mine, or open vehicles that belong to your own force. But now, you can steal a vehicle from another force by claiming it! If the vehicle is unlocked and there is nobody inside, it will be turned over to your force. I hope this will make multiplayer games more interesting! :-)
+
+  Bugfixes:
+    - Fixed crash in multiplayer mode. (https://mods.factorio.com/mod/GCKI/discussion/603a0735db404769917d7e68)
+    - Fixed that characters would be destroyed if the "Avatars" mod was enabled and the player entered/left an Avatar Control Center or Avatar Remote Deploy Unit. (https://mods.factorio.com/mod/GCKI/discussion/6074ddc8ada1100252bcd08d)
+    - Fixed that players would be spammed with messages when using AAI Programmable Vehicles. (https://mods.factorio.com/mod/GCKI/discussion/603a0735db404769917d7e68)
+    - You may have locked entities based on the car prototype that were never meant to be used as vehicles. These will be reset next time you load your game.
+
+  Changes:
+    - Huge overhaul of code (clean-up and rework).
+    - It seems irrational that just any old jalopy could be locked remotely, or respond to being summoned by a player, they should at least require some advanced tech for that. Therefore, the recipes for all the vehicles that can be claimed with GCKI now require some green circuits. GCKI will add them to any recipe that doesn't already require green, red, or blue circuits.
+    - Added GUIs (see below) to manage the vehicles you have claimed, locked or selected!
+    - Moved setting for long reach from start-up to map settings.
+    - Added new player settings (see below).
+    - You can give vehicles custom names using the GUI. For vehicles that are based on a spider-vehicle prototype, the same name will be used on the vehicle's GUI (you may have to close and reopen it before the new name is shown).
+
+  Commands:
+    - GCKI now supports commands that you can enter on the chat console. Use "/help" to get a list of the commands; the names start with "GCKI-".
+    - You can change user settings set with a checkbox using a command now.
+    - Unlock/reset vehicles from the command line! Resetting a vehicle will unlock it, apply the default color, and remove the custom name. Admins (in single player mode, the player is admin) may unlock/reset any vehicle available in the game; normal players may only change the vehicles they've currently claimed/locked:
+      - "/GCKI-unlock [vehicle specification]" to unlock all eligible vehicles, or the vehicle specified by custom name or unit_number.
+      - "/GCKI-unlock-player 'player index or name'" to unlock all vehicles locked by the specified player. Can only be used by admins.
+      - "/GCKI-reset [unit_number or custom name]" to reset all eligible vehicles, or the vehicle specified by custom name or unit_number.
+      - "/GCKI-reset-player 'player name or index'" to reset all vehicles owned/locked by the specified player. Can only be used by admins.
+    - New commands that will only be available in debugging mode:
+      - "/GCKI-show-active-events" will print and log a list of all events GCKI is currently listening to.
+      - "/GCKI-is-event-active [event name, event id]" checks if GCKI is listening to the event with the given name or numeric ID.
+
+  GUI:
+    - You can open a GUI of all the vehicles you've currently claimed or locked. Use it to claim/give up or lock/unlock vehicles, assign custom names, or watch a vehicle on minimap/camera. Once you have no claimed/locked vehicle left, the GUI, its toggle button, and the minimap will be automatically hidden. (Camera view will be kept open if messages about destroyed/stolen vehicles are rendered for the player).
+    - Selecting an area with the keys will open a GUI with information about all selected vehicles. You can see who has claimed/locked a vehicle, manage your claimed/locked vehicles, or give a custom name to unnamed and unlocked vehicles without an owner. Selecting an area in alt-select mode will add the selected vehicles to the GUI, selecting an area in reverse-select mode will remove them from the GUI.
+    - In minimap or camera view, left click will zoom in, right clíck will zoom out, middle click will reset to default zoom.
+
+  Settings:
+    - New player setting: You can now can turn off purely informational messages (toggle hints). (https://mods.factorio.com/mod/GCKI/discussion/603a0735db404769917d7e68)
+    - New player setting: If you want to keep your game chat clean, you can display messages and optional hints as flying text.
+    - New player setting: Open a list of all your locked vehicles when the vehicle you've owned last has been destroyed or stolen, so you can claim one of your remaining vehicles.
+    - New player setting: Automatically claim your locked vehicle if the vehicle you've owned last has been destroyed or stolen. This will only work if you've exactly 1 locked vehicle left.
+    - New map setting: Players who join another force can either take all vehicles they've claimed/locked with them (they will then be removed from the selected-vehicles GUI of all players from the old force), or must abandon all their vehicles (vehicles will be unlocked and lose their custom name).
+    - New map setting: When players change forces and keep their vehicles, players from the old force will be ejected from those vehicles. When players change forces and abandon their vehicles, they will be ejected from any vehicle they are riding in.
+
+  Compatibility:
+    - Other mods may prevent GCKI from changing their recipes by adding the custom flag "recipe.GCKI_ignore = true" in data.lua or data-updates.lua.
+    - Some mods use entities based on the "car" or "spider-vehicle" prototypes creatively. GCKI will ignore prototypes where selectable_in_game == false (unless they are whitelisted). Entities from the following mods are blacklisted by default:
+      - "Avatars"
+      - "Companion Drones"
+      - "HelicopterRevival"
+      - "Industrial Revolution 2"
+      - "King Jo's Warhammer 40K Bunker"
+      - "Logicarts", "Logistic Carts"
+      - "Nullius"
+      - "Renai Transportation"
+      - "Satisfactorio"
+      - "Shield Projector"
+      - "Space Exploration"
+
+    - "Space Exploration": Even unlocked vehicles won't be active if they are in space.
+    - "DMV - Directional Movement Vehicles": Add dummy-items to place the vehicles based on the "car" prototypes for which DMV has created a "spider-vehicle" version (we'll need this so the selection tool will show an icon, and to get the icon for the GUIs).
+    - Added custom event "on_GCKI_teleported_vehicle". Mods like "AAI Programmable Vehicles" can use that to stop/repath vehicles that have been teleported by GCKI (perhaps even to another surface) while in motion. Use remote.call("GCKI", "get_custom_event_ids") to get the IDs of all custom GCKI events (there's only one event now, but I may add more events in the future).
+    - Added remote function "vehicle_proxy_destroyed". Mods may store vehicle data when they temporarily remove a vehicle (use case: "Vehicle Wagons 2" loading a vehicle on a wagon). Now vehicles may have a custom name that should persist even though the vehicle is temporarily unavailable, but could be restored. This function should be called when the proxy (e.g. the wagon carrying the vehicle) is destroyed, so that GCKI can remove the custom name from its list.
+    - Added functions other mods can use to add black- or whitelist their vehicle prototypes with GCKI. See data.lua for instructions!
+
+  Localization:
+    - Renamed strings, so their names make a bit more sense now.
+    - Removed frequently used phrases from strings, and made new strings ("hints-") for them. Such hints can be toggled with a user setting.
+    - Considerably shortened long strings. Removed several obsolete strings.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.1
+Date: 2020-12-15T02:20:00+02:00
+
+  Info:
+    - This release includes the changes made for version 0.18.9.
+
+  Changes:
+    - Bumped dependency on the base mod to >= 1.1.6.
+    - Added support for the "Lua API global Variable Viewer" (gvv). It allows to inspect the global table of other mods and is therefore a valuable tool during debugging.
+    - Cleaned up the code a bit.
+
+  Bugfixes:
+    - If a game saved with Factorio 0.18 was loaded, locked vehicles couldn't be activated again. The bug has been fixed in Factorio 1.1.6. I've added a migration script to repair the state of all locked vehicles. (https://forums.factorio.com/viewtopic.php?f=30&t=92704)
+    - Previously, you could enter (but not use) a locked vehicle by hitting <ENTER> in rapid succession. This isn't possible anymore.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 1.1.0
+Date: 2020-12-04T05:10:00+02:00
+
+  Info:
+    - This is just a quick update for Factorio 1.1. I've just bumped the version number -- no code changes whatsoever. Also, I've only done minimal testing and it seems the mod will work, but I can't guarantee that it really is bug free!
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.8
+Date: 2020-06-04T09:30:00+02:00
+
+  Info:
+    - All changes are also available for Factorio 0.17 (version 0.17.18 of this mod).
+
+  Bugfixes:
+    - Fixed crash when the last player was removed from the game. This could be triggered in single player mode by starting the scenario "Transport belt madness".
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.7
+Date: 2020-06-03T15:00:00+02:00
+
+  Info:
+    - All changes are also available for Factorio 0.17 (version 0.17.17 of this mod).
+
+  Bugfixes:
+    - Fixed crash on loading a saved game in Factorio <0.18.27 by including code to avoid calling script raised events with filtering. (https://mods.factorio.com/mod/GCKI/discussion/5ed1c8132b642b000d64e4e1)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.6
+Date: 2020-05-29T21:00:00+02:00
+
+  Info:
+    - All changes are also available for Factorio 0.17 (version 0.17.16 of this mod).
+
+  Changes:
+    - Added event filtering again, now that it works properly in Factorio 0.18.27. (Kept the old filtering code in the functions for now, so the code can be used for the 0.17 branch as well.)
+    - Bumped dependency on Autodrive to 0.2.6.
+
+  Compatibility:
+    - Added compatibility with "Vehicle Wagons 2": If a player owned the vehicle before it was loaded, he will get it back when it is unloaded -- unless the player has claimed another vehicle in the meantime. Only the player who owns or who has locked a vehicle may load it onto a wagon and unload it again. Thanks to robot256 for cooperating on getting this done!
+    - Added compatibility with "Uncle Shred's unminable vehicles": If that mod makes vehicles unminable, GCKI will respect this setting and keep vehicles unminable even if they are unlocked.
+
+  Minor Features:
+    - In ALT-mode, locked vehicles are now marked with an icon.
+
+  Locale:
+    - Fixed a typo in GCKI_messages.lock_vehicle_enter_owner (English).
+    - Added some new keys.
+
+  Modding:
+    - Added remote interfaces for "Vehicle Wagons 2" and similar mods that may remove vehicles for a while and restore them later.
+
+      USAGE:
+
+      remote.call("GCKI", "get_vehicle_data", vehicle)
+
+        This will return a table: { locker = player.index or nil, owner = player.index or nil}.
+
+        vehicle: entity.unit_number or a valid (!) entity of type "car"
+
+      remote.call("GCKI", "vehicle_removed", vehicle)
+
+        This will return nothing. If a vehicle had been marked as "locked" or "owned" by GCKI, it will be removed from the list.
+
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.5
+Date: 2020-05-13T22:20:00+02:00
+
+  Bugfixes:
+    - Fixed another crash. (https://mods.factorio.com/mod/GCKI/discussion/5ebc27d20f1be8000bdd6467)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.4
+Date: 2020-05-13T14:20:00+02:00
+
+  Bugfixes:
+    - Fixed crash in migration script. (https://mods.factorio.com/mod/GCKI/discussion/5eae65a44470bd000bc8dada)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.3
+Date: 2020-05-09T14:45:00+02:00
+
+  Info:
+    - WARNING: THIS VERSION OF GCKI MAY CRASH YOUR GAME!
+      Vehicle data were previously stored in a way that makes it hard to take care of mods that replace vehicles (e.g. "AAI Programmable Vehicles"). I've restructured the data, but this means that I had to rework the parts of the code that use these data. Although I've tested the mod before uploading, it's still likely that I didn't catch everything -- so please be prepared for
+      game crashes if you update this mod to 0.18.3!
+      (I'd appreciate if you would test this and report any crashes you may get!)
+
+  Bugfixes:
+
+  Changes:
+    - Added migration script to restructure vehicle data.
+    - Adjusted code so it works with the new data structure.
+    - If a "locked" vehicle is without an owner, it will now keep the color of the player who has locked it.
+    - Removed conflict with "Gizmos Car Keys - Zahnfeechen Patch". It's not needed anymore because it has been deprecated some months ago and isn't available for Factorio 0.18.
+    - Bumped dependency on "Autodrive" to version 0.2.0 -- it just doesn't make sense to depend on a version for Factorio 0.17.
+
+  Compatibility:
+    - Added compatibility with "AAI Programmable Vehicles".
+
+  Modding:
+    - Added remote interface for mods like "AAI Programmable Vehicles" that constantly replace vehicle entities.
+
+      USAGE:
+      remote.call("GCKI", "on_entity_replaced", event)
+
+      This will return nothing. GCKI will add the new entity to its list, copy the data from the old new vehicle, and remove the old vehicle's entry.
+
+      Arguments:
+      event = {
+        ["new_entity"] = entity,
+        ["new_entity_unit_number"] = entity.unit_number,
+        ["old_entity"] = entity,
+        ["old_entity_unit_number"] = entity.unit_number,
+      }
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.2
+Date: 2020-02-28T00:05:00+02:00
+
+  Info:
+    - All changes are also available for Factorio 0.17 (version 0.17.15 of this mod).
+
+  Bugfixes:
+    - Fixed crash with AAI Programmable vehicles. (https://mods.factorio.com/mod/GCKI/discussion/5e55cdf966994e000b327153)
+
+  Changes:
+    - Revived the old fix for Autodrive that used to remove characters of the "autodrive-passenger" dummy; it's more general now, so it will catch all dummy characters inserted by other mods into vehicles as driver or passenger.
+
+  Modding:
+    - Added another remote interface to find dummy characters inserted by mods like "Autodrive" or "AAI Programmable Vehicles".
+
+      USAGE:
+      remote.call("GCKI", "dummies_in_vehicle", vehicle)
+
+      This will return nil if no dummy is inside, or a table of character entities:
+
+          local dummy = remote.call("GCKI", "dummies_in_vehicle", vehicle)
+
+          local driver = dummy["driver"]
+          local passenger = dummy["passenger"]
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.18.1
+Date: 2020-01-21T19:49:00+02:00
+
+  Info:
+    - Updated the mod for Factorio 0.18 (no code changes)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.14
+Date: 2019-12-27T21:24:00+02:00
+
+  Changes:
+    - Disabled patches for Autodrive. The things they fixed (adjusting weapons control and removing dummy passengers) are now taken care of in Autodrive itself.
+
+  Modding:
+    - Added remote interface. Other mods can now check who has locked a vehicle or who is the owner of a vehicle. As I am now collaborator on Autodrive (>=0.1.18), I will use this myself to allow for better interaction between these mods.
+
+      USAGE:
+      remote.call("GCKI", "vehicle_locked_by", vehicle)
+      remote.call("GCKI", "vehicle_owned_by", vehicle)
+
+      In both cases, the argument 'vehicle' must be an entity of type "car". Both remote calls will return either a player entity or nil.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.13
+Date: 2019-11-19T19:13:00+02:00
+
+  Bugfixes:
+    - Added checks to prevent crashes if a vehicle doesn't exist anymore because the mod that introduced it has been deactivated.
+    - Make sure players are associated with a character before doing anything in event scripts for on_built_entity and on_player_driving_changed_state. This should prevent crashes occurring in editor and god mode -- thanks to Pankeko for reporting the bug!
+
+  Changes:
+    - Removed event filtering for now: Extra code for filtering events raised by scripts is still required, and event filtering doesn't work with the current stable version of Factorio (0.17.74).
+    - Changed dependency on base mod to >= 0.17.74, to make this mod usable with the current stable version again.
+    - Using the vehicle keys won't have any effect in god mode or editor mode. Also, entering/leaving a vehicle in these modes won't do anything special -- you'll need to play a normal single- or multiplayer game.
+
+  Release name:
+    - The "God ain't almighty" release
+      (Vehicle keys can't be used in god or editor mode.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.12
+Date: 2019-11-17T16:48:00+02:00
+
+  Bugfixes:
+    - Event filtering doesn't work if events are raised by scripts (see this thread on the forums: <https://forums.factorio.com/viewtopic.php?f=34&t=77550#p464525>), so I added a check to on_built_entity. This fixes a bug with the "Rocket-Silo Construction" were the construction site would be removed again as soon as the first stage was completed -- thanks to Dragonling for finding it!
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.11
+Date: 2019-11-06T12:10:50+02:00
+
+  Bugfixes:
+    - This is a bug in Autodrive: When a vehicle controlled by Autodrive is killed, and if Autodrive has placed a dummy passenger inside it, a character that can't be controlled or killed appears in the game. This shouldn't happen, and it should be taken care of in Autodrive. For now, I've included a patch to remove dummy passengers; this will be removed once the bug gets fixed in Autodrive.
+
+  Changes:
+    - Use the event filtering mechanism introduced in Factorio 0.17.75. This should improve performance as the mod now ignores events it doesn't need to know about.
+    - Bumped dependency on base mod to >=0.17.75.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.10
+Date: 2019-10-29T04:57:00+02:00
+
+  Major Features:
+    - Players now also can summon vehicles that are on another surface. You may not like to be teleported to another surface, so I introduced a new per-user setting: You can opt to be ejected before the vehicle you're in is moved there.
+
+  Minor Features:
+    - A vehicle that has an owner will always have the color of its owner unless it is unlocked and used by somebody else. (If the owner is inside, he will be the driver. In this case, the vehicle color will also be the owner's color.)
+    - A vehicle that has no owner and is unlocked will have the color of the driver, or of the passenger if it has no driver. Usually, the vehicle will keep the color of the last player who was in it. Now, the color of unlocked vehicles without an owner will be reset (r=g=b=a=0) when it is unoccupied again.
+    - Messages rendered on the ground used to be displayed for a certain time only. Now, if a player leaves the game, the timer will be frozen and the message will be shown for the remaining time when the player joins again.
+    - Added startup option to use the icon from "Zahnfeechen Patch" instead of "Gizmos Car Keys" for the keys. Thanks to Zahnfeechen for allowing me to include it! (This is just a change of the keys' appearance, not the way they work.)
+
+  Compatibility:
+    - Autodrive puts a dummy passenger into vehicles that have neither driver nor passenger so that it can open gates (if there is a Gate sensor in the vehicle) or shoot (if there is an Enemy sensor in the vehicle.) GCKI ejects driver and passenger when a vehicle gets locked or if anybody tries to enter a locked vehicle; thereby, it has been spamming the surface with dummy passenger characters. Now, these dummy passengers will be removed from the vehicle before they can be ejected.
+    - If Autodrive is active and an Enemy sensor is installed in the vehicle, Autodrive will try to use the driver as gunner; if there is no driver, it will check for a passenger, and if there is no passenger, it will put the dummy passenger in and make him the gunner. Prior to Factorio 0.17.73, that only worked if "Weapons control" in the vehicle's menu was set to the same player that Autodrive considered to be the gunner. Now, this setting is automatically adapted whenever a player enters or leaves a vehicle. (Without Autodrive, weapons control is set to the passenger first so he doesn't get bored, and to the driver only if there's no passenger.)
+
+  Changes:
+    - Some more code optimizations.
+    - Fix for a minor, but annoying issue with Autodrive.
+    - Added optional dependency on Autodrive.
+    - Removed dependency on OpteraLib. I thought I would use more of it, but all I did use was a very simple function to measure the distance between two map positions that was so basic that it doesn't justify a dependency on the complete library. :-)
+    - Added migration script to remove accidentally spammed Autodrive passengers from all surfaces. It also removes some variables that have never been used for anything from saved games.
+    - If other players enter or leave an unlocked vehicle that belongs to somebody else, the owner will only be informed if he is at least 30 tiles away from the vehicle (and possibly can't see what happens with it).
+    - Changed dependency on base mod: version 0.17.73 is required now because this mod uses some features that have been introduced in the latest versions.
+    - Had to distract myself from a particular problem for a while, so I tried to come up with some snappy release names for all versions. Completely useless, but the problem got fixed and I had some fun meanwhile. Perhaps you like them, too.  :-)
+
+  Locale:
+    - Updated the Russian localization with new translations courtesy of Dragonling.
+
+  Release name:
+    - "Fly me to the moon!"
+      (Vehicles can now be teleported to other surfaces.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.9
+Date: 2019-10-13T09:41:00+02:00
+
+  Bugfixes:
+    - Fixed that entering or leaving a train would crash the game. (Unlike cars, locomotives/wagons may only have a driver, no passenger.)
+    - Fixed that all players would lose their owned vehicles after update to 0.17.8. (Renamed a table that was stored in the savegame, but forgot to migrate it.)
+    - Fixed bug on starting a new game or on loading a game that didn't contain this mod before. (Copy/paste error while editing events: tried to access event.player_index, which isn't available in on_init().)
+
+  Changes:
+    - Reformatted changelog. It may look better in the in-game changelog viewer with hard line breaks, but is almost unreadable on the mod portal. Let's see how it works with very long lines!
+    - Added several new localization strings.
+
+  Release name:
+    - The "Buggy Cars" release
+      (Fixes some annoying bugs introduced in 0.17.8.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.8
+Date: 2019-10-10T20:05:00+02:00
+
+  Bugfixes:
+    - Fixed desyncs caused by an error introduced in 0.17.6.
+    - Fixed that list of vehicles owned/locked by a player persisted even if that player was permanently removed from game. Also made sure that all of this player's locked vehicles get unlocked again.
+
+  Major Features:
+    - Previously, if you locked a vehicle and gave it up for a new one, anybody with a key could claim it. Now, locked vehicles that don't have an owner can only be claimed by the player who locked them. This way, you can actually own various vehicles!
+    - Previously, players couldn't use locked vehicles, but they could leave or enter them. That didn't seem right, so I introduced these changes:
+      - If a vehicle is locked by its owner, everybody inside (including the owner) will be ejected.
+      - Nobody can enter a locked vehicle. (Technically, one can -- no way to avoid that in the game. But if anybody enters a locked vehicle, they will be ejected again. Unfortunately, the color of the vehicle will be changed to that of the last player who tried for now. That problem is on my TODO list and will be addressed once Factorio 0.17.70 is released.)
+      - If an unlocked vehicle is entered by its owner, the owner will always be the driver. If the vehicle already had a driver, the previous driver will be demoted to passenger status. (If the vehicle already had a driver and a passenger, the game won't allow anybody else to enter. But in such cases, the owner could always use the keys to lock the vehicle …)
+
+  Minor Features:
+    - Moved global runtime options (under "Modsettings --> Map") to user runtime settings (under "Modsettings --> Per player").
+    - Added user runtime option to change colors of text messages rendered on the ground. (These messages can only be seen by one player, so messages for other players don't get into the way and you can use the color that suits you best).
+
+  Changes:
+    - Some more code clean-up.
+    - Updated Russian locale again. Many thanks to Dragonling! (Some keys have been added in this version again, so you should install "Russian locale for some mods 2" by Dragonling for the latest translations.)
+    - If a vehicle is summoned by the owner and somebody is inside it, passenger/driver will be notified.
+    - If somebody enters or leaves a vehicle, the other occupant and the owner (if they exist) will be notified.
+    - Added check whether vehicle is on the same surface as the player before trying to teleport it. Currently, Factorio allows only players to be teleported between surfaces.
+    - Significantly reduced size of thumbnail, it was bloating the mod far too much.
+
+  Release name:
+    - "Dis be Susans turf!"
+      (Credit for the name goes to eradicator, who suggested it as localization string.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.7
+Date: 2019-09-30T19:50:00+02:00
+
+  Bugfixes:
+    - Fixed that debug output spammed the chat console even if the setting was turned off.
+
+  Release name:
+    - The "STFU!" release
+      (Don't be so chatty, mod!)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.6
+Date: 2019-09-29T23:30:00+02:00
+
+  Bugfixes:
+    - Fixed another bug that crashed the game on loading. Thanks to eradicator for patiently explaining how I could improve my code, make it cleaner and safe to use! (Hope I didn't make a mess of it again …)
+
+  Changes:
+    - Updated Russian locale. Many thanks again to Dragonling for providing the translation of recently added and changed strings!
+
+  Locale:
+    - Updated Russian locale to work with versions >0.17.4 of this mod.
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.5
+Date: 2019-09-26T21:30:30+02:00
+
+  Bugfixes:
+    - Fixed a bug that was found with bobplates, but potentially affects even more mods (my debug function leaked into global space and overwrote the debug table).
+
+  Release name:
+    - "Think globally, act locally!"
+      (Neglecting the scope of variables can cause serious bugs.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.4
+Date: 2019-09-24T06:13:00+02:00
+
+  Bugfixes:
+    - Fixed that players could claim a vehicle owned by another player.
+    - Fixed wrong dates of the previous two versions in the changelog. :-)
+
+  Compatibility:
+    - Cargo ships provides the technology "Ships" which unlocks the boat. Keys will now also be unlocked by researching this technology.
+
+  Changes:
+    - Added optional dependency on Cargo Ships.
+    - Added migration script so that Keys are available even if this mod is loaded into a game where Automobilism/Ships have already been researched.
+    - Added check whether the chunk at the new location of the vehicle has already been generated (vehicles will never be moved into an ungenerated chunk).
+    - Added localization key for the mod description.
+    - Multiplayer:
+      - If a vehicle without an owner is occupied, the driver may claim it -- but only if it has no passenger.
+      - If a vehicle owned by someone is mined by another player, or destroyed, a message can be shown on the location where the vehicle used to be. There is a global runtime option to turn off this feature; you can also adjust for how long the message will be displayed.
+      - If a player enters an unlocked vehicle that belongs to somebody else, the player will be warned that the vehicle may be summoned somewhere by the owner and the owner will be informed that somebody is using it.
+      - Players may enter a locked vehicle that belongs to somebody else -- but only as passenger, not as driver. If the vehicle already has a passenger, the player will be ejected.
+
+  Release name:
+    - The "R.I.P" release
+      (Leave a message where your vehicle was before it died.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.3
+Date: 2019-09-10T21:03:00+02:00
+
+  Locale:
+    - Russian
+
+  Changes:
+    - Added Russian localization. Thanks to Dragonling for the translation!
+
+  Release name:
+    - "From Russia with love"
+      (Added Russian localization.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.2
+Date: 2019-09-10T12:55:00+02:00
+
+  Bugfixes:
+    - Fixed that keys could be blueprinted. Thanks to Dragonling for finding this bug!
+
+  Changes:
+    - Added optional dependency on Schallfalke's "Transport Group" mod.
+
+  Release name:
+    - The "I've got blueprints and that ain't good" release
+      (Released in response to the first bug report.)
+
+
+---------------------------------------------------------------------------------------------------
+Version: 0.17.1
+Date: 2019-09-07T01:43:00+02:00
+
+  Info:
+    - Initial release
+    - Credits go to
+      - aodgizmo:    for the original mod, "Gizmos Car Keys" (not updated to Factorio 0.17) -- I used the code (and changed or removed parts of it) and the car-key graphics in my mod;
+      - Zahnfeechen: for "Gizmos Car Keys - Zahnfeechen Patch" (which updated aodgizmo's mod for Factorio 0.17) -- I happily played with this mod myself, but it removed all items from the vehicle grid when a vehicle was summoned and has not been updated for 5 months as of now, so I first patched it and then went to the source to make some more improvements.
+    - This mod and "Gizmos Car Keys - Zahnfeechen Patch" are based on the same code, so it makes no sense to have both mods active at the same time. Rather, it might lead to unforeseeable results as both mods act on the same events! I therefore
+
+  Locale:
+    - English
+    - German
+
+  Major Features:
+    - While the original mod moved vehicles by copy/pasting them between positions, this mod just teleports them to their new location. This saves some code and has the additional bonus that vehicles will be moved with everything that is in them: not only trunk, ammo, and fuel inventory, but also (if any of these are present) vehicle grid, driver, and passenger.
+    - Vehicles can now only be moved where you could manually place them: i.e. not on buildings, trees, rocks, or cliffs; not on (deep) water if it is a car, tank, etc.; only on water if it is a boat.
+    - Long reach (character_build_distance_bonus) will be disabled by default while a vehicle is summoned, so you can't get into a car and teleport to the other end of your base. (There is a start-up option to enable long reach again.)
+
+  Release name:
+    - "Smart grids won't stay behind"
+      (Contents of vehicle grids will be moved with vehicles.)
