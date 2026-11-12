@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.2.0](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.1.0...gcki-continued/v2.2.0) (2026-11-12)
+
+
+### Features
+
+* add space age specific functionality ([55f7529](https://github.com/jbmay/factorio-mods/commit/55f75296375cd2b03963f465fb06de0f6155994b))
+* add space age specific functionality to gcki ([9e96131](https://github.com/jbmay/factorio-mods/commit/9e96131965b608cc534ed7f436d3824d996b38d6))
+
 ## [2.1.0](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.0.1...gcki-continued/v2.1.0) (2026-11-12)
 
 
