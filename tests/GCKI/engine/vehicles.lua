@@ -46,8 +46,26 @@ return function(context)
 
   local function assert_locked(player, car)
     assert(GCKI_vehicle.get_locker(car) == player, 'vehicle locker was not preserved')
-    assert(car.disabled_by_script and not car.operable and not car.minable_flag,
+    assert(not car.disabled_by_script and car.operable and not car.minable_flag,
            'locked vehicle flags were not preserved')
+  end
+
+  local function owner_access(player, car)
+    for _, role in ipairs({'driver', 'passenger'}) do
+      car['set_' .. role](player)
+      mod.player_data[player.index].last_action_tick = game.tick
+      mod.player_data[player.index].skip_state_change = 2
+      GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
+      assert(player.vehicle == car and GCKI_vehicle.get_occupants(car)[role].entity == player,
+             'lock ejected the owner from ' .. role .. ' seat')
+      assert_locked(player, car)
+      player.opened = car
+      GCKI_events.on_gui_opened{player_index = player.index, entity = car}
+      assert(player.opened == car, 'owner could not open locked inventory')
+      player.opened = nil
+      car['set_' .. role](nil)
+    end
+    mod.player_data[player.index].skip_state_change = nil
   end
 
   local function lock_unlock(player, car)
@@ -58,6 +76,7 @@ return function(context)
            car.operable and car.minable_flag, 'vehicle did not unlock')
     click(player, car.position)
     assert_locked(player, car)
+    owner_access(player, car)
   end
 
   local function snapshot(state, car, owner, locker)
@@ -214,6 +233,97 @@ return function(context)
       local state = {mode = context.mode, player = player.index, cars = {}}
       mod.ci_vehicle_test = state
       if context.mode == 'space-age' then space_age(player, state) else base_game(player, state) end
+      case('existing disabled locks become usable by their owner on upgrade', function()
+        for _, saved in ipairs(state.cars) do
+          saved.entity.disabled_by_script = true
+          saved.entity.operable = false
+        end
+        GCKI_events.on_configuration_changed{name = 'on_configuration_changed'}
+        for _, saved in ipairs(state.cars) do
+          move(player, saved.entity.surface)
+          assert_locked(player, saved.entity)
+          owner_access(player, saved.entity)
+        end
+      end)
+      case('locking while the owner is driving keeps the owner in the vehicle', function()
+        local car = state.cars[#state.cars].entity
+        move(player, car.surface)
+        car.set_driver(player)
+        click(player, car.position) -- unlock
+        click(player, car.position) -- lock again while driving
+        assert(player.vehicle == car); assert_locked(player, car)
+        car.set_driver(nil)
+      end)
+      case('locked driver seat and inventory reject non-owners while passenger seats remain available', function()
+        local car = state.cars[#state.cars].entity
+        local data = mod.GCKI_vehicles[car.unit_number]
+        local owner, locker = data.owner, data.locker
+        -- Native tests supply one real player. A different lock-holder ID makes
+        -- that real player unauthorized; Lua regressions also test two players
+        -- occupying the driver/passenger seats simultaneously.
+        data.owner, data.locker = nil, player.index + 1000
+        for _, role in ipairs({'driver', 'passenger'}) do
+          car['set_' .. role](player)
+          mod.player_data[player.index].last_action_tick = game.tick
+          mod.player_data[player.index].skip_state_change = 2
+          GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
+          if role == 'driver' then
+            assert(not car.get_driver() and player.vehicle == car, 'driver was not redirected to a passenger seat')
+          else
+            assert(player.vehicle == car, 'locked vehicle rejected a passenger')
+          end
+          car.set_driver(nil); car.set_passenger(nil)
+        end
+        car.set_passenger(player)
+        player.opened = car
+        GCKI_events.on_gui_opened{player_index = player.index, entity = car}
+        assert(not player.opened, 'unauthorized passenger inventory stayed open')
+        car.set_passenger(nil); car.set_driver(player)
+        GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
+        assert(not car.get_driver() and player.vehicle == car, 'passenger bypassed the driver lock by switching seats')
+        car.set_passenger(nil)
+        data.owner, data.locker = owner, locker
+        mod.player_data[player.index].skip_state_change = nil
+      end)
+      case('admin recovery is explicit and preserves the recovered vehicle and its contents', function()
+        local saved = state.cars[#state.cars]
+        local car = saved.entity
+        move(player, car.surface)
+        local was_admin = player.admin
+        local trunk = car.get_inventory(defines.inventory.car_trunk)
+        assert(trunk.insert{name = 'iron-plate', count = 12} == 12)
+        GCKI_vehicle.edit_vehicle_name{player = player, vehicle = car, new_name = 'GCKI recovery test'}
+        local color = car.color
+        player.admin = false
+        GCKI_commands.clear_owner{player_index = player.index, parameter = 'vehicle ' .. car.unit_number}
+        assert_claim(player, car); assert_locked(player, car)
+        player.admin = true
+        car.set_driver(player)
+        GCKI_commands.clear_owner{player_index = player.index, parameter = 'vehicle invalid'}
+        assert_claim(player, car); assert_locked(player, car)
+        GCKI_commands.clear_owner{player_index = player.index, parameter = 'vehicle ' .. car.unit_number}
+        assert(car.valid and car.unit_number == saved.id and not mod.GCKI_vehicles[car.unit_number])
+        assert(car.operable and car.minable_flag and not car.disabled_by_script)
+        assert(not car.get_driver() and not car.get_passenger() and not player.vehicle)
+        assert(trunk.get_item_count('iron-plate') == 12)
+        assert(mod.named_vehicles.by_id[car.unit_number].name == 'GCKI recovery test')
+        assert(car.color.r == color.r and car.color.g == color.g and car.color.b == color.b)
+        -- Restore the fixture's ordinary assignment for its later save/load checks.
+        click(player, car.position); click(player, car.position)
+        assert_claim(player, car); assert_locked(player, car)
+        player.admin = was_admin
+      end)
+      case('server-console recovery clears a removed players stale lock and claim', function()
+        local car = spawn(player, player.surface, {10, -10})
+        local id, missing = car.unit_number, player.index + 1000
+        mod.GCKI_vehicles[id] = {entity = car, owner = missing, locker = missing}
+        mod.owners[missing] = id
+        mod.lockers[missing] = {[id] = id}
+        car.disabled_by_script, car.operable, car.minable_flag = true, false, false
+        GCKI_commands.clear_owner{parameter = 'vehicle ' .. id}
+        assert(not mod.GCKI_vehicles[id] and not mod.owners[missing] and not mod.lockers[missing])
+        assert(car.valid and car.operable and car.minable_flag and not car.disabled_by_script)
+      end)
       state.results = results
       state.awaiting_reload = true
       -- This uses Factorio's real mod save/load lifecycle, preserving LuaEntity

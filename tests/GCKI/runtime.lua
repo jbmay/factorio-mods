@@ -7,7 +7,10 @@ GCKI.argprint = tostring
 GCKI.enquote = tostring
 GCKI.normalize_position = function(p) return p end
 GCKI.prefixed = function(s, prefix) return s:sub(1, #prefix) == prefix end
-GCKI.ascertain_player = function(p) return type(p) == 'number' and game.get_player(p) or p end
+GCKI.ascertain_player = function(p)
+  if type(p) == 'number' then return game.get_player(p) end
+  return p
+end
 GCKI.shortcut_name = 'GCKI_carkey'
 GCKI.carkey_name = 'GCKI_car-key'
 GCKI.ACTION_DELAY = 0
@@ -34,8 +37,18 @@ local player = {valid = true, index = 1, name = 'one', surface = nauvis,
                 physical_surface = nauvis, force = {name = 'player'},
                 character = {valid = true, orientation = 0},
                 cursor_stack = {valid_for_read = false}}
-local players = {[1] = player, [2] = {valid = true, index = 2, surface = nauvis}}
-game = {tick = 100, get_player = function(id) return players[id] end}
+local other_player = {valid = true, index = 2, name = 'two', surface = nauvis,
+                      character = {valid = true}, force = player.force}
+local players = {[1] = player, [2] = other_player}
+game = {tick = 100, players = players, get_player = function(id)
+  if type(id) == 'number' then return players[id] end
+  for _, candidate in pairs(players) do if candidate.name == id then return candidate end end
+end}
+local audit, replies = {}, {}
+log = function(message) audit[#audit + 1] = message end
+rcon = {print = function(message) replies[#replies + 1] = message end}
+player.print = function(message) replies[#replies + 1] = message end
+other_player.print = player.print
 player.cursor_stack.set_stack = function(stack)
   player.cursor_stack.name = stack.name
   player.cursor_stack.valid_for_read = true
@@ -54,22 +67,39 @@ GCKI_vehicle.is_vehicle = function(v) return type(v) == 'table' and v.valid and 
 GCKI_vehicle.color_vehicle = noop
 GCKI_vehicle.store_orig_color = noop
 GCKI_vehicle.can_store_orig_color = function() return true end
-GCKI_vehicle.get_occupants = function() return {} end
+GCKI_vehicle.get_occupants = function(car)
+  local result = {}
+  for role, occupant in pairs(car.seats or {}) do
+    result[role] = {entity = occupant, index = occupant.index, is_player = true}
+  end
+  return next(result) and result or nil
+end
 GCKI_vehicle.remove_dummy = noop
 GCKI_vehicle.locked_icon = noop
 GCKI_vehicle.must_remove_vehicle = function() return false end
 GCKI_events = dofile('mods/GCKI/scripts/event_handlers.lua')
 GCKI_events.helper.need_gui_events = noop
 GCKI_events.helper.check_optional_events = noop
+GCKI_events.driving = dofile('mods/GCKI/scripts/event_driving.lua')
 GCKI_events.used_key = dofile('mods/GCKI/scripts/event_key_shortcut.lua')
 GCKI_player = dofile('mods/GCKI/scripts/player_functions.lua')
 GCKI_player.is_in_reach = function() return true end
 GCKI_custom_input = dofile('mods/GCKI/scripts/custom_inputs.lua')
+GCKI_commands = dofile('mods/GCKI/scripts/commands.lua')
 
 local function vehicle(id, where, owner)
   local entity = {unit_number = id, valid = true, surface = where, position = {x = 0, y = 0},
                   force = player.force, name = 'car', type = 'car', orientation = 0,
                   prototype = {half_width = 1, half_length = 1, collision_mask = {layers = {}}}}
+  entity.seats = {}
+  for _, role in ipairs({'driver', 'passenger'}) do
+    entity['set_' .. role] = function(occupant)
+      local old = entity.seats[role]
+      if old and old.vehicle == entity then old.vehicle = nil end
+      entity.seats[role] = occupant
+      if occupant then occupant.vehicle = entity end
+    end
+  end
   entity.teleport = function(position, destination)
     entity.position = position
     entity.surface = destination or entity.surface
@@ -113,7 +143,7 @@ function cases.base_game_claim_lock_unlock_and_summon()
   local car = vehicle(11, nauvis)
   claim(car)
   GCKI_events.used_key.claim_or_toggle_lock(player, car)
-  assert(car.disabled_by_script and mod.GCKI_vehicles[11].locker == 1)
+  assert(not car.disabled_by_script and car.operable and mod.GCKI_vehicles[11].locker == 1)
   GCKI_events.used_key.claim_or_toggle_lock(player, car)
   assert(not car.disabled_by_script and not mod.GCKI_vehicles[11].locker)
   GCKI_events.used_key.summon(player, {x = 5, y = 2})
@@ -126,7 +156,7 @@ function cases.base_game_replacing_claim_preserves_old_lock()
   GCKI_events.used_key.claim_or_toggle_lock(player, first)
   claim(second)
   assert(not mod.GCKI_vehicles[11].owner and mod.GCKI_vehicles[11].locker == 1)
-  assert(first.disabled_by_script and mod.GCKI_vehicles[22].owner == 1)
+  assert(not first.disabled_by_script and first.operable and mod.GCKI_vehicles[22].owner == 1)
 end
 function cases.base_game_keeps_single_global_claim()
   script.active_mods['space-age'] = nil
@@ -192,14 +222,14 @@ function cases.locking_and_unlocking_are_independent_per_planet()
   local a, b = vehicle(11, nauvis), vehicle(22, vulcanus)
   claim(a); claim(b)
   GCKI_events.used_key.claim_or_toggle_lock(player, a)
-  assert(a.disabled_by_script and mod.GCKI_vehicles[11].locker == 1)
+  assert(not a.disabled_by_script and a.operable and mod.GCKI_vehicles[11].locker == 1)
   assert(not b.disabled_by_script and not mod.GCKI_vehicles[22].locker)
   move(vulcanus)
   GCKI_events.used_key.claim_or_toggle_lock(player, b)
-  assert(a.disabled_by_script and b.disabled_by_script)
+  assert(mod.GCKI_vehicles[11].locker == 1 and mod.GCKI_vehicles[22].locker == 1)
   move(nauvis)
   GCKI_events.used_key.claim_or_toggle_lock(player, a)
-  assert(not a.disabled_by_script and b.disabled_by_script)
+  assert(not mod.GCKI_vehicles[11].locker and mod.GCKI_vehicles[22].locker == 1)
   assert(mod.GCKI_vehicles[11].owner == 1 and mod.GCKI_vehicles[22].owner == 1)
 end
 function cases.reset_all_visits_all_planets_and_players()
@@ -233,6 +263,164 @@ function cases.moved_vehicle_cannot_create_two_claims_on_one_planet()
   claim(a); claim(b); b.surface = nauvis
   GCKI_ownership.reconcile()
   assert(mod.GCKI_vehicles[11].owner == 1 and not mod.GCKI_vehicles[22].owner)
+end
+function cases.lock_owner_can_enter_drive_and_open_inventory_without_unlocking()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  car.set_driver(player)
+  mod.player_data[1].last_action_tick = game.tick
+  mod.player_data[1].skip_state_change = 2
+  GCKI_events.on_player_driving_changed_state{player_index = 1, entity = car, tick = game.tick}
+  assert(car.seats.driver == player and player.vehicle == car)
+  assert(not car.disabled_by_script and car.operable and not car.minable_flag)
+  assert(mod.GCKI_vehicles[11].locker == 1)
+  player.opened = car
+  GCKI_events.on_gui_opened{player_index = 1, entity = car}
+  assert(player.opened == car and mod.GCKI_vehicles[11].locker == 1)
+end
+function cases.lock_allows_other_passengers_but_rejects_other_drivers()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  for _, role in ipairs({'driver', 'passenger'}) do
+    car.set_driver(nil); car.set_passenger(nil)
+    car['set_' .. (role == 'driver' and 'passenger' or 'driver')](player)
+    car['set_' .. role](other_player)
+    mod.player_data[2].last_action_tick = game.tick
+    mod.player_data[2].skip_state_change = 2
+    GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+    if role == 'driver' then
+      assert(not car.seats.driver and not other_player.vehicle)
+    else
+      assert(car.seats.passenger == other_player and other_player.vehicle == car)
+    end
+    assert(player.vehicle == car and mod.GCKI_vehicles[11].locker == 1)
+  end
+end
+function cases.locking_occupied_vehicle_keeps_owner_and_closes_other_inventory()
+  local car = vehicle(11, nauvis); claim(car)
+  car.set_driver(player); car.set_passenger(other_player)
+  player.opened = car; other_player.opened = car
+  GCKI_events.used_key.toggle_lock(player, car)
+  assert(car.seats.driver == player and car.seats.passenger == other_player)
+  assert(player.opened == car and not other_player.opened)
+end
+function cases.lock_redirects_other_driver_to_an_available_passenger_seat()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  car.set_driver(other_player)
+  GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+  assert(not car.seats.driver and car.seats.passenger == other_player)
+  assert(other_player.vehicle == car and mod.GCKI_vehicles[11].locker == 1)
+end
+function cases.lock_allows_unattended_passenger_but_rejects_switching_to_driver()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  car.set_passenger(other_player)
+  GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+  assert(car.seats.passenger == other_player and other_player.vehicle == car)
+  car.set_passenger(nil); car.set_driver(other_player)
+  mod.player_data[2].last_action_tick = game.tick
+  mod.player_data[2].skip_state_change = 2
+  GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+  assert(not car.seats.driver and car.seats.passenger == other_player and other_player.vehicle == car)
+  assert(mod.GCKI_vehicles[11].locker == 1 and not car.minable_flag)
+end
+function cases.lock_rejects_other_inventory_but_unlock_restores_public_access()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  other_player.opened = car
+  GCKI_events.on_gui_opened{player_index = 2, entity = car}
+  assert(not other_player.opened)
+  GCKI_events.used_key.toggle_lock(player, car)
+  other_player.opened = car
+  GCKI_events.on_gui_opened{player_index = 2, entity = car}
+  assert(other_player.opened == car and GCKI_vehicle.can_access_vehicle(car, other_player))
+  assert(car.minable_flag and not car.disabled_by_script and car.operable)
+end
+function cases.lock_holder_keeps_access_after_claiming_a_replacement()
+  local first, second = vehicle(11, nauvis), vehicle(22, nauvis)
+  claim(first); GCKI_events.used_key.toggle_lock(player, first); claim(second)
+  assert(not mod.GCKI_vehicles[11].owner and mod.GCKI_vehicles[11].locker == 1)
+  first.set_driver(player)
+  GCKI_vehicle.enforce_vehicle_lock(first)
+  assert(first.seats.driver == player and GCKI_vehicle.can_access_vehicle(first, player))
+  assert(not GCKI_vehicle.can_access_vehicle(first, other_player))
+end
+local function recover(args)
+  args = args or {}
+  args.name = 'GCKI-clear-owner'
+  args.tick = game.tick
+  GCKI_commands.clear_owner(args)
+end
+function cases.admin_recovery_rejects_nonadmins_and_invalid_callers()
+  local car = vehicle(11, nauvis); claim(car); GCKI_events.used_key.toggle_lock(player, car)
+  player.selected = car
+  recover{player_index = 2, parameter = 'vehicle 11'}
+  recover{player_index = 999, parameter = 'vehicle 11'}
+  assert(mod.GCKI_vehicles[11].owner == 1 and mod.GCKI_vehicles[11].locker == 1)
+  assert(not car.minable_flag)
+end
+function cases.admin_recovery_is_explicit_and_does_not_grant_routine_access()
+  local car = vehicle(11, nauvis); claim(car); GCKI_events.used_key.toggle_lock(player, car)
+  other_player.admin = true
+  assert(not GCKI_vehicle.can_access_vehicle(car, other_player))
+  other_player.selected = nil
+  recover{player_index = 2}
+  for _, argument in ipairs({'vehicle nope', 'vehicle 11 extra', 'all', 'vehicle 9999', 'player missing'}) do
+    recover{player_index = 2, parameter = argument}
+  end
+  recover{} -- server console has no implicit selected vehicle or all-vehicles fallback
+  assert(mod.GCKI_vehicles[11].owner == 1 and mod.GCKI_vehicles[11].locker == 1)
+end
+function cases.admin_recovers_selected_vehicle_without_changing_other_claims_or_contents()
+  local car, other = vehicle(11, nauvis), vehicle(22, vulcanus)
+  claim(car); GCKI_events.used_key.toggle_lock(player, car)
+  claim(other); GCKI_events.used_key.toggle_lock(player, other)
+  car.contents = {coal = 12}; car.equipment = {battery = 1}; car.color = {r = 0.5}
+  mod.named_vehicles.by_id[11] = {entity = car, name = 'Keep this name'}
+  mod.named_vehicles.by_name['Keep this name'] = 11
+  other_player.admin, other_player.selected = true, car
+  car.set_driver(player); car.set_passenger(other_player)
+  recover{player_index = 2}
+  assert(not car.seats.driver and not car.seats.passenger)
+  assert(not mod.GCKI_vehicles[11] and car.valid and car.minable_flag and car.operable)
+  assert(mod.GCKI_vehicles[22].owner == 1 and mod.GCKI_vehicles[22].locker == 1)
+  assert(car.contents.coal == 12 and car.equipment.battery == 1 and car.color.r == 0.5)
+  assert(mod.named_vehicles.by_id[11].name == 'Keep this name')
+  assert(not mod.lockers[1][11] and not mod.player_data[1].locked_or_owned[11])
+  assert(GCKI_ownership.find(1, vulcanus) == 22)
+  if script.active_mods['space-age'] then
+    assert(not GCKI_ownership.find(1, nauvis))
+  else
+    assert(GCKI_ownership.find(1, nauvis) == 22)
+  end
+  assert(#audit == 1 and audit[1]:find('vehicle=11', 1, true))
+end
+function cases.admin_recovers_one_abandoned_players_vehicles_on_all_planets()
+  local a, b = vehicle(11, nauvis), vehicle(22, vulcanus)
+  claim(a); GCKI_events.used_key.toggle_lock(player, a)
+  claim(b); GCKI_events.used_key.toggle_lock(player, b)
+  local other = vehicle(33, nauvis, 2)
+  mod.owners[2] = 33
+  other_player.admin = true
+  player.name = 'Abandoned Player'
+  recover{player_index = 2, parameter = 'player "Abandoned Player"'}
+  assert(not mod.GCKI_vehicles[11] and not mod.GCKI_vehicles[22])
+  assert(a.minable_flag and b.minable_flag)
+  assert(mod.GCKI_vehicles[33].owner == 2 and other.valid)
+  assert(not mod.owners[1] and not mod.lockers[1])
+  assert(#audit == 2)
+end
+function cases.server_console_recovers_vehicle_with_a_removed_owner()
+  local car = vehicle(11, nauvis, 999)
+  mod.GCKI_vehicles[11].locker = 999
+  mod.owners[999] = 11; mod.lockers[999] = {[11] = 11}
+  mod.player_data[999] = {locked_or_owned = {[11] = car}}
+  car.operable, car.minable_flag, car.disabled_by_script = false, false, true
+  recover{parameter = 'vehicle 11'}
+  assert(not mod.GCKI_vehicles[11] and car.operable and car.minable_flag and not car.disabled_by_script)
+  assert(not mod.owners[999] and not mod.lockers[999] and not mod.player_data[999].locked_or_owned)
+  assert(audit[1]:find('actor=server-console', 1, true))
 end
 assert(cases[arg[1]], 'Unknown runtime case: ' .. tostring(arg[1]))()
 print('[PASS] GCKI: ' .. arg[1]:gsub('_', ' '))

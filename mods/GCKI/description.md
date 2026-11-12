@@ -11,6 +11,8 @@ The keys will be available as long as an unlock technology has been researched. 
 
 If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach. With Space Age enabled, this summons only the vehicle claimed on your current planet.
 
+**A locked vehicle remains usable by its owner.** You can enter either seat, drive, and open its inventory without unlocking it, and locking while seated keeps you inside. Other players can ride in passenger seats, even when you are not inside, but cannot drive the vehicle or open its inventory window. If a non-owner enters the driver seat, they are moved to an available passenger seat or ejected if it is occupied. Switching seats cannot bypass the driver lock. The player who locked a vehicle retains access even after claiming a replacement. Locked vehicles must still be unlocked before anyone can mine them.
+
 This mod supports vehicle grids and everything else a vehicle might contain. Without Space Age, the single globally claimed vehicle can also be summoned to another surface. Other players riding in the vehicle travel with it unless they have chosen to stay on the original surface through their per-player runtime setting.
 
 Other than the original mod, this one should be safe to use in multiplayer games.
@@ -68,7 +70,24 @@ The argument `vehicle` must be a `LuaEntity` of type `"car"` or `"spider-vehicle
 
 ## Commands ##
 
+### Admin vehicle recovery ###
 
+Server admins can recover griefed vehicles or vehicles left behind by players
+who no longer play. This is an explicit console action; admin status does not
+override normal car-key, locking, or passenger behavior.
+
+- `/GCKI-clear-owner` or `/GCKI-clear-owner selected`: recover the vehicle under your cursor.
+- `/GCKI-clear-owner vehicle 12345`: recover the vehicle with that unit number.
+- `/GCKI-clear-owner player PlayerName`: recover vehicles claimed or locked by that player across all planets. Player indexes and quoted names such as `player "Player Name"` are also accepted.
+
+Recovery clears both the lock and claim and ejects occupants, allowing another
+player to claim the vehicle. The vehicle, its contents, equipment, custom name,
+and color are preserved. Each recovered vehicle is recorded in the server log
+with the administrator, vehicle ID, surface, and previous owner and lock holder.
+
+The server console and RCON can use the same command with an explicit `vehicle`
+or `player` target. An omitted or invalid target never recovers every vehicle.
+Non-admin players cannot use the recovery command.
 
 # Supported languages  #
 - English
@@ -78,7 +97,7 @@ The argument `vehicle` must be a `LuaEntity` of type `"car"` or `"spider-vehicle
 *If you can provide a localization for another language, I'd  be happy to include it! :-)*
 
 # Uninstalling GCKI #
-If you want to remove GCKI from a game, you should make sure that there are no locked vehicles left behind! Otherwise, you won't be able to drive them, mine them, or open their inventory. Likewise, if you are participating in a multiplayer game and intend to never join your current server again, you should unlock or reset all vehicles owned or locked by you so that other players can use them.
+Before removing GCKI from a game, unlock or reset your vehicles so their mining protection is cleared. Likewise, if you are participating in a multiplayer game and intend to never join your current server again, unlock or reset all vehicles owned or locked by you so that other players can use them.
 
 # Help needed #
 I've spent quite some time on testing this mod to make sure it's safe to use in multiplayer mode. However, doing these tests locally may not be reliable. So I'm interested in any feedback on issues while playing multiplayer games!

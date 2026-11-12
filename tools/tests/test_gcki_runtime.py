@@ -36,6 +36,28 @@ BASE_GAME_CASES = (
 )
 
 
+LOCK_CASES = (
+    "lock_owner_can_enter_drive_and_open_inventory_without_unlocking",
+    "lock_allows_other_passengers_but_rejects_other_drivers",
+    "locking_occupied_vehicle_keeps_owner_and_closes_other_inventory",
+    "lock_allows_unattended_passenger_but_rejects_switching_to_driver",
+    "lock_redirects_other_driver_to_an_available_passenger_seat",
+    "lock_rejects_other_inventory_but_unlock_restores_public_access",
+    "lock_holder_keeps_access_after_claiming_a_replacement",
+)
+ADMIN_CASES = (
+    "admin_recovery_rejects_nonadmins_and_invalid_callers",
+    "admin_recovery_is_explicit_and_does_not_grant_routine_access",
+    "admin_recovers_selected_vehicle_without_changing_other_claims_or_contents",
+    "admin_recovers_one_abandoned_players_vehicles_on_all_planets",
+    "server_console_recovers_vehicle_with_a_removed_owner",
+)
+BASE_GAME_CASES += ADMIN_CASES
+SPACE_AGE_CASES += ADMIN_CASES
+BASE_GAME_CASES += LOCK_CASES
+SPACE_AGE_CASES += LOCK_CASES
+
+
 class GCKIBaseGameTests(unittest.TestCase):
     pass
 

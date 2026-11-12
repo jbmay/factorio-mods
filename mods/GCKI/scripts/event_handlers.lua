@@ -138,35 +138,9 @@ end
 --              EJECT PLAYERS AND REMOVE DUMMIES FROM LOCKED VEHICLES             --
 ------------------------------------------------------------------------------------
 local function eject_players(vehicle, occupants)
-  GCKI.entered_function({vehicle, occupants})
-
-  local v = vehicle and vehicle.valid and mod.GCKI_vehicles[vehicle.unit_number]
-  if v then
-    -- We want to skip the event, but we may need to reset the vehicle color to that
-    -- of the owner in GCKI or Autodrive!
-    GCKI_vehicle.color_vehicle(vehicle)
-
-    -- Ditto for the vehicle gunner.
-    GCKI_vehicle.set_shooter(vehicle, occupants)
-
-    if v.locker then
-      -- First, remove dummies from vehicle and destroy them.
-      GCKI_vehicle.remove_dummy(vehicle, occupants)
-
-      -- Remove human players from vehicle
-      for role, occupant in pairs(occupants or {}) do
-        if occupant.is_player then
-          GCKI.writeDebug("Ejecting %s from locked %s!",
-                          {role, GCKI.argprint(vehicle)})
-          mod.player_data[occupant.index].last_action_tick = game.tick
-          vehicle["set_"..role](nil)
-        end
-      end
-    end
-  end
-  ------------------------------------------------------------------------------------
-
-  GCKI.entered_function("leave")
+  GCKI_vehicle.enforce_vehicle_lock(vehicle)
+  GCKI_vehicle.color_vehicle(vehicle)
+  GCKI_vehicle.set_shooter(vehicle)
 end
 
 
@@ -967,6 +941,10 @@ common_events.on_configuration_changed = function(event)
     for v, v_data in pairs(mod.GCKI_vehicles) do
       vehicle = v_data.entity
       if vehicle and vehicle.valid then
+        if v_data.locker then
+          GCKI_vehicle.lock_vehicle(vehicle)
+          GCKI_vehicle.enforce_vehicle_lock(vehicle)
+        end
         if vehicle.type == "car" then
           GCKI.writeDebug("Adding %s", {GCKI.argprint(vehicle)})
           table.insert(vehicles, v_data.entity)
@@ -2550,6 +2528,19 @@ GCKI.show("p_data.last_action_tick", p_data.last_action_tick)
   end
 
 
+  local locked = mod.GCKI_vehicles[vehicle.unit_number]
+  if locked and locked.locker then
+    GCKI_vehicle.enforce_vehicle_lock(vehicle)
+    if player.vehicle == vehicle then
+      GCKI_vehicle.color_vehicle(vehicle, player)
+    else
+      GCKI_vehicle.color_vehicle(vehicle)
+    end
+    GCKI_vehicle.set_shooter(vehicle)
+    GCKI.entered_event(event, "leave", "checked locked vehicle access")
+    return
+  end
+
   local occupants
 
   --~ -- We care about this vehicle
@@ -2740,6 +2731,16 @@ end
 ------------------------------------------------------------------------------------
 --                                SHORTCUT WAS USED                               --
 ------------------------------------------------------------------------------------
+common_events.on_gui_opened = function(event)
+  local vehicle = event.entity
+  local player = game.get_player(event.player_index)
+  if vehicle and vehicle.valid and player and
+      not GCKI_vehicle.can_access_vehicle(vehicle, player) then
+    player.opened = nil
+    GCKI.output(player, {"GCKI-messages.vehicle-access-denied", GCKI.loc_name(vehicle)})
+  end
+end
+
 common_events.on_player_changed_surface = function(event)
   local player = game.get_player(event.player_index)
   if player then GCKI_ownership.update_shortcut(player) end

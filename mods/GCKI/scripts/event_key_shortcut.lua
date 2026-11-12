@@ -32,7 +32,7 @@ local used_key = {}
 --                                 VEHICLE FUNCTIONS                              --
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
--- Vehicle has been locked. Eject all occupants!
+-- Vehicle has been locked. Enforce driver access while retaining passengers!
 local function eject_from(owner, vehicle)
 GCKI.entered_function({owner, vehicle})
 
@@ -44,12 +44,8 @@ GCKI.entered_function({owner, vehicle})
   -- Color the vehicle with owner's color
   GCKI_vehicle.color_vehicle(vehicle)
 
-  -- Inform human occupants that vehicle has been locked and eject them
-  for role, occupant in pairs(occupants or {}) do
-    GCKI_messages.used_key.info_eject_occupants_locked(owner, occupant.entity, vehicle)
-    -- Just a fancy way of calling vehicle.set_driver() or vehicle.set_passenger()!
-    vehicle["set_"..role](nil)
-  end
+  -- Retain the owner and eject only unauthorized players.
+  GCKI_vehicle.enforce_vehicle_lock(vehicle)
 end
 
 
@@ -59,7 +55,7 @@ GCKI.entered_function({owner, vehicle})
   -- If the vehicle has just been locked, "locker" will be owner.index!
   local locker = GCKI_vehicle.lock_or_unlock(vehicle, owner)
 
-  -- Eject all occupants
+  -- Eject unauthorized occupants
   if locker then
     eject_from(owner, vehicle)
   end

@@ -17,10 +17,10 @@ upstream `.bak` files remain on disk but are excluded by the root `.gitignore`.
 
 ## License and credits
 
-The mod portal lists this mod under the MIT license. The extracted download
-contains no standalone license file. Preserve upstream attribution and obtain
-the applicable license notice for inclusion before redistribution; do not
-substitute a new copyright notice for the upstream authors.
+The mod portal lists this mod under the MIT license. [LICENSE](LICENSE) contains
+the generic MIT terms downloaded from SPDX. The imported archive contained no
+standalone copyright notice; no author-specific notice has been added. The
+license file is included in packaged mod ZIPs.
 
 See `graphics/credits.txt` for artwork attribution and `description.md` for the
 upstream portal description, usage instructions, and additional credits.
@@ -37,8 +37,15 @@ The fork conflicts with upstream `GCKI` to prevent duplicate prototypes and
 handlers. Automatic transfer of upstream save data is not implemented, and
 integrations that look for the original mod name require separate review.
 The maintained fork targets Factorio **2.1.24** or newer within the 2.1 series
-and requires **Pi-C_lib >= 2.1.0**. Vehicle locking uses the 2.1 script-controlled
-activation and mining flags. `ci.json` pins the engine and dependency used for smoke tests;
+and requires **Pi-C_lib >= 2.1.0**. Vehicle locks enforce entry and inventory-window
+permissions through events and keep locked vehicles unminable. Owners can enter
+either seat, drive, and open the vehicle interface while the lock stays active.
+Other players may ride as passengers. Entering or switching to the driver seat
+moves them to an available passenger seat, or ejects them if it is occupied;
+the vehicle inventory window remains restricted to its owner or lock holder.
+The lock holder retains access after claiming another vehicle. On upgrade,
+existing locks are preserved and the old disabling flags are removed.
+`ci.json` pins the engine and dependency used for smoke tests;
 `portal.json` records the upstream identity and first-publication metadata.
 See [shared development notes](../../docs/development.md) for credentials, coverage,
 and the release workflow.
@@ -63,3 +70,21 @@ of a player's vehicles. If another mod moves claimed vehicles onto the same
 planet, reconciliation keeps the lowest unit number claimed and releases the
 other claims while preserving their locks. The same rule applies when Space Age
 is disabled and multiple claims must become one global claim.
+
+## Admin recovery
+
+`/GCKI-clear-owner` recovers the selected vehicle. Explicit targets are
+`/GCKI-clear-owner vehicle <unit_number>` and
+`/GCKI-clear-owner player <name or index>`; names with spaces may be quoted.
+The player form applies across planets to vehicles claimed or locked by that
+player. Server-console/RCON callers must provide an explicit target.
+
+Recovery clears the GCKI claim and lock and ejects occupants, preserving the
+entity, contents, equipment, custom name, and color. It also handles stale
+ownership records whose original player no longer exists. Actions are logged
+with the actor, vehicle ID, surface, and former owner/locker IDs.
+
+Only an admin or the server console can invoke this separate command. Admins
+retain the same normal vehicle-access rules as everyone else. Invalid or missing
+targets do not fall back to recovering all vehicles. Existing `/GCKI-unlock`,
+`/GCKI-unlock_player`, and reset commands keep their existing behavior.
