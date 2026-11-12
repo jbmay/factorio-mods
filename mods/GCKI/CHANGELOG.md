@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.2.1](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.2.0...gcki-continued/v2.2.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* clarify Space Age behavior in the mod description ([f88ed9b](https://github.com/jbmay/factorio-mods/commit/f88ed9b1c9575af064882a94f5224453ba9bc8c4))
+
 ## [2.2.0](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.1.0...gcki-continued/v2.2.0) (2026-11-12)
 
 
