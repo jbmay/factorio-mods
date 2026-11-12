@@ -304,6 +304,45 @@ return function(context)
         car.destroy(); spider.destroy()
       end)
       if context.mode == 'space-age' then space_age(player, state) else base_game(player, state) end
+      case('Your vehicles groups planets alphabetically and preserves row controls when reordering', function()
+        local expected = context.mode == 'space-age' and
+          {'aquilo', 'fulgora', 'gleba', 'nauvis', 'nauvis', 'vulcanus'} or
+          {'nauvis', 'gcki-test-other-surface'}
+        -- Discard vehicles destroyed by earlier scripted cases before inspecting the GUI.
+        GCKI_events.on_configuration_changed{name = 'on_configuration_changed'}
+        local names = GCKI_gui_names.player_vehicles.table_columns
+        GCKI_gui_player_vehicles.init_gui(player)
+        local tab = GCKI_gui_player_vehicles.get_gui_table(player)
+        local function check_order()
+          local children = tab.children
+          assert(#children == (#expected + 1) * 8, 'unexpected vehicle cell count: ' .. #children)
+          local previous
+          for row, surface in ipairs(expected) do
+            local label = children[row * 8 + 4]
+            assert(label.caption == surface, 'unexpected planet/surface at row ' .. row)
+            local id = tonumber(label.name:sub(#names.surface + 1))
+            if row > 1 and expected[row - 1] == surface then
+              assert(previous < id, 'same-surface vehicles must have stable ID order')
+            end
+            previous = id
+          end
+        end
+        check_order()
+        local car = state.cars[1].entity
+        local map_cell = tab[names.map_view .. car.unit_number]
+        local name_cell = tab[names.id .. car.unit_number]
+        local old_text = name_cell.text
+        map_cell.state, name_cell.text = true, 'Unsubmitted vehicle name'
+        -- Scramble the first/last rows to exercise sorting of existing controls.
+        for column = 1, 8 do tab.swap_children(8 + column, #expected * 8 + column) end
+        GCKI_gui_player_vehicles.add_to_gui(player, {car})
+        check_order()
+        assert(tab[names.map_view .. car.unit_number] == map_cell and map_cell.state)
+        assert(tab[names.id .. car.unit_number] == name_cell and name_cell.text == 'Unsubmitted vehicle name')
+        map_cell.state, name_cell.text = false, old_text
+        GCKI_gui_player_vehicles.init_gui(player)
+        check_order()
+      end)
       case('existing disabled locks become usable by their owner on upgrade', function()
         for _, saved in ipairs(state.cars) do
           saved.entity.disabled_by_script = true

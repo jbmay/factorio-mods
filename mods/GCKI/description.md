@@ -21,6 +21,8 @@ Other than the original mod, this one should be safe to use in multiplayer games
 ## Space Age ##
 Space Age is detected automatically. Each player can claim **one vehicle per planet**, so you can keep a car on Nauvis, a tank on Vulcanus, and another vehicle on each of the other planets.
 
+The **Your vehicles** list groups vehicles by planet alphabetically, regardless of when you claimed them. Surfaces without a planet are grouped by surface name after the planets. Vehicles within each surface are ordered by vehicle ID.
+
 - Use the car-key shortcut to take out the keys, then click a vehicle to claim it. Click your claimed vehicle again to lock or unlock it.
 - Click a free position within reach to summon the vehicle claimed on your current planet. **If you have no vehicle claimed there, nothing is summoned.** Vehicles on other planets stay where they are.
 - Claiming another vehicle replaces only your assignment on that planet. Assignments on other planets are preserved. Lock your old vehicle before replacing it if you want it to remain locked afterward.
