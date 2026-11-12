@@ -25,7 +25,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -36,7 +36,7 @@ jobs:
         run: maru run test-static --set "MOD=$MOD"
       - name: Explain PR coverage
         run: echo 'PR checks cover automation unit tests, metadata, Lua syntax and packaging. Authenticated engine tests run in trusted on main and version tags.' >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: package-${{ inputs.mod }}
           path: dist/*.zip
@@ -53,7 +53,7 @@ jobs:
     environment: trusted
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ github.sha }}
           persist-credentials: false
@@ -64,14 +64,14 @@ jobs:
           FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
           FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
         run: maru run test --set "MOD=$MOD"
-      - uses: actions/upload-artifact@v7
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: package-${{ inputs.mod }}
           path: dist/*.zip
           if-no-files-found: error
       - name: Save engine diagnostics
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: logs-${{ inputs.mod }}
           path: .test-results/**/data/factorio-current.log
