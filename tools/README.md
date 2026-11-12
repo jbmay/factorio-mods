@@ -12,7 +12,7 @@ packaging checks; `maru run test --set MOD=GCKI` includes engine tests. Omitting
 `MOD` selects all mods. [Local container tests](../docs/development.md#local-container-tests)
 describes credentials, mounts, and retained saves/logs.
 
-The `list-mods`, `release-matrix`, `tag-matrix`, and `publish` tasks also run their corresponding
+The `list-mods`, `release-matrix`, `tag-matrix`, `update-description`, and `publish` tasks also run their corresponding
 CLI commands in that image. Discovery and release selection write JSON under
 `dist/` so workflow outputs do not mix with Maru build/progress messages. CI's
 Maru installation is pinned in `.maru-version`.
@@ -33,6 +33,7 @@ name; release tags use the component in `release-please-config.json`.
 | `release-matrix` | Converts Release Please outputs into per-mod publishing jobs. | Reads `RELEASE_OUTPUTS` and prints a JSON array of objects containing `mod` and `tag`. |
 | `tag-matrix --tag TAG` | Selects the registered mod for a version tag and checks its version. | Prints the single-entry publishing matrix; rejects unknown components and mismatched versions. |
 | `publish MOD --archive ZIP --tag TAG` | Verifies and uploads a release package. | Creates a portal listing or adds a release to an existing listing. |
+| `update-description MOD` | Updates an existing portal Information page from `description.md`. | Makes a real portal edit using an API key with Edit Mods permission; no ZIP or version tag is required. |
 
 Examples of local discovery, validation, and packaging:
 
@@ -172,13 +173,28 @@ The publisher queries the portal for the internal mod name. For a new listing,
 it uses the first-publication API with `description.md` and the license/category
 from `portal.json`. When `GITHUB_REPOSITORY` is available, it also supplies the
 repository source URL. Existing listings use the release-upload API without
-changing their portal descriptions.
+description fields; after a successful upload the publisher calls
+`update_description(mod)` to refresh the Information page through the separate
+`edit_details` API. The portal does not take this Markdown from the release ZIP.
 
 If the version already exists, publication succeeds only when its portal
-checksum matches the input archive. Different bytes for the same version fail;
-the publisher never replaces an existing portal release. The API key is sent
-only to the upload initialization endpoint, and the returned upload URL must
-use HTTPS.
+checksum matches the input archive. An identical-release retry still refreshes
+the description. Different bytes for the same version fail before any metadata
+edit; the publisher never replaces an existing portal release. A description
+update failure fails the publishing job even if its ZIP upload succeeded, and
+an identical-release retry can finish that metadata update.
+
+`update_description(mod)` validates the local mod metadata and fork identity,
+then sends only the mod name and UTF-8 `description.md` contents to
+`https://mods.factorio.com/api/v2/mods/edit_details`. It requires a positive
+success response. The API key needs **Edit Mods**, in addition to **Upload Mods**
+and **Publish Mods** for the complete publishing flow. Authenticated requests use
+multipart forms; the API key is sent to the portal's initialization and details
+endpoints, never to the returned upload URL, which must use HTTPS.
+
+`maru run update-description --set MOD=GCKI` refreshes the page from the current
+checkout without publishing a release. It runs in the same container and reads
+`FACTORIO_API_KEY` from the environment; it does not need download credentials.
 
 The function does not run engine tests, ensure a GitHub Release exists,
 or attach GitHub assets itself. Those steps belong to `publish.yml`, whose

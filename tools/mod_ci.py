@@ -227,19 +227,18 @@ def request(url, *, fields=None, token=None, file=None):
     if token:
         headers["Authorization"] = f"Bearer {token}"
     if fields is not None:
+        boundary = uuid.uuid4().hex
+        parts = []
+        for key, value in fields.items():
+            parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode())
         if file:
-            boundary = uuid.uuid4().hex
-            parts = []
-            for key, value in fields.items():
-                parts.append(f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n'.encode())
             parts.extend([
                 f'--{boundary}\r\nContent-Disposition: form-data; name="file"; filename="{file.name}"\r\nContent-Type: application/zip\r\n\r\n'.encode(),
-                file.read_bytes(), f"\r\n--{boundary}--\r\n".encode(),
+                file.read_bytes(), b"\r\n",
             ])
-            data = b"".join(parts)
-            headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
-        else:
-            data = urllib.parse.urlencode(fields).encode()
+        parts.append(f"--{boundary}--\r\n".encode())
+        data = b"".join(parts)
+        headers["Content-Type"] = f"multipart/form-data; boundary={boundary}"
     try:
         with urllib.request.urlopen(urllib.request.Request(url, data=data, headers=headers), timeout=180) as response:
             return response.read()
@@ -464,6 +463,22 @@ def tag_matrix(tag):
     return release_matrix({"paths_released": json.dumps(paths), f"{path}--tag_name": tag})
 
 
+def update_description(mod):
+    """Synchronize the portal Information page without uploading a release."""
+    path, info, _ = validate(mod)
+    if info["name"] == read_json(path / "portal.json").get("upstream_name"):
+        raise ValueError("Choose a distinct fork name before updating portal details")
+    token = os.getenv("FACTORIO_API_KEY")
+    if not token:
+        raise ValueError("Set FACTORIO_API_KEY with portal Edit Mods permission")
+    result = api("https://mods.factorio.com/api/v2/mods/edit_details", fields={
+        "mod": info["name"], "description": (path / "description.md").read_text(encoding="utf-8"),
+    }, token=token)
+    if result.get("success") is not True:
+        raise ValueError("Portal did not confirm a successful description update; check Edit Mods permission")
+    print(f"Updated {info['name']} portal description")
+
+
 def publish(mod, archive, tag):
     path, info, _ = validate(mod)
     component = read_json(ROOT / "release-please-config.json")["packages"][f"mods/{mod}"]["component"]
@@ -471,7 +486,7 @@ def publish(mod, archive, tag):
         raise ValueError("Release tag/version mismatch")
     token = os.getenv("FACTORIO_API_KEY")
     if not token:
-        raise ValueError("Set FACTORIO_API_KEY with portal Upload Mods and Publish Mods permissions")
+        raise ValueError("Set FACTORIO_API_KEY with portal Upload Mods, Publish Mods, and Edit Mods permissions")
     portal_config = read_json(path / "portal.json")
     if info["name"] == portal_config.get("upstream_name"):
         raise ValueError("Choose a distinct fork name in info.json and update internal imports before publishing")
@@ -492,6 +507,7 @@ def publish(mod, archive, tag):
         if prior:
             if prior["sha1"] != hashlib.sha1(archive.read_bytes()).hexdigest():
                 raise ValueError("Portal already has different bytes for this version")
+            update_description(mod)
             print("Identical release is already published")
             return
     endpoint = "releases/init_upload" if existing else "init_publish"
@@ -513,12 +529,14 @@ def publish(mod, archive, tag):
     result = api(upload, fields=fields, file=archive)
     if result.get("success") is not True:
         raise ValueError("Portal did not confirm a successful upload")
+    if existing:
+        update_description(mod)
     print(f"Published {info['name']} {info['version']}")
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["list", "check", "package", "engine", "release-matrix", "tag-matrix", "publish"])
+    parser.add_argument("command", choices=["list", "check", "package", "engine", "release-matrix", "tag-matrix", "publish", "update-description"])
     parser.add_argument("mod", nargs="?")
     parser.add_argument("--work")
     parser.add_argument("--archive")
@@ -551,6 +569,8 @@ def main():
         if not args.work:
             parser.error("engine requires --work")
         run_engine(args.mod, args.work, report)
+    elif args.command == "update-description":
+        update_description(args.mod)
     elif args.command == "publish":
         if not args.archive or not args.tag:
             parser.error("publish requires --archive and --tag")

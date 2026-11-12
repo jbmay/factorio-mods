@@ -361,6 +361,8 @@ class ModCITests(unittest.TestCase):
         self.write("portal.json", {"license": "default_mit", "category": "content", "upstream_name": "Demo"})
         with self.assertRaisesRegex(ValueError, "distinct fork"):
             ci.publish("Demo", ci.package("Demo"), "Demo/v1.0.0")
+        with self.assertRaisesRegex(ValueError, "distinct fork"):
+            ci.update_description("Demo")
 
     @patch.dict("os.environ", {"FACTORIO_API_KEY": "test-key"})
     @patch.object(ci, "api")
@@ -379,12 +381,76 @@ class ModCITests(unittest.TestCase):
         archive = ci.package("Demo")
         prior = {"version": "1.0.0", "sha1": ci.hashlib.sha1(archive.read_bytes()).hexdigest()}
         request.return_value = json.dumps({"releases": [prior]}).encode()
+        api.return_value = {"success": True}
         ci.publish("Demo", archive, "Demo/v1.0.0")
-        api.assert_not_called()
+        api.assert_called_once_with("https://mods.factorio.com/api/v2/mods/edit_details",
+                                    fields={"mod": "Demo", "description": "Demo mod"}, token="test-key")
+        api.reset_mock()
         prior["sha1"] = "different"
         request.return_value = json.dumps({"releases": [prior]}).encode()
         with self.assertRaisesRegex(ValueError, "different bytes"):
             ci.publish("Demo", archive, "Demo/v1.0.0")
+        api.assert_not_called()
+
+    @patch.dict("os.environ", {"FACTORIO_API_KEY": "test-key"})
+    @patch.object(ci, "api")
+    @patch.object(ci, "request")
+    def test_existing_release_upload_refreshes_description_after_successful_upload(self, request, api):
+        request.return_value = json.dumps({"releases": []}).encode()
+        api.side_effect = [{"upload_url": "https://uploads.example.com/release"}, {"success": True}, {"success": True}]
+        description = "# Space Age\n\nOne vehicle per planet.\n"
+        (self.mod / "description.md").write_text(description)
+        archive = ci.package("Demo")
+        ci.publish("Demo", archive, "Demo/v1.0.0")
+        self.assertTrue(api.call_args_list[0].args[0].endswith("releases/init_upload"))
+        self.assertEqual(api.call_args_list[1].args[0], "https://uploads.example.com/release")
+        self.assertNotIn("token", api.call_args_list[1].kwargs)
+        self.assertEqual(api.call_args_list[2].args[0], "https://mods.factorio.com/api/v2/mods/edit_details")
+        self.assertEqual(api.call_args_list[2].kwargs["fields"], {"mod": "Demo", "description": description})
+
+    @patch.dict("os.environ", {"FACTORIO_API_KEY": "test-key"})
+    @patch.object(ci, "api")
+    @patch.object(ci, "request")
+    def test_failed_release_upload_does_not_change_portal_description(self, request, api):
+        request.return_value = json.dumps({"releases": []}).encode()
+        api.side_effect = [{"upload_url": "https://uploads.example.com/release"}, {"success": False}]
+        with self.assertRaisesRegex(ValueError, "successful upload"):
+            ci.publish("Demo", ci.package("Demo"), "Demo/v1.0.0")
+        self.assertEqual(api.call_count, 2)
+
+    @patch.dict("os.environ", {"FACTORIO_API_KEY": "edit-only-key"})
+    @patch.object(ci, "api")
+    def test_update_description_needs_no_release_archive_and_fails_without_confirmation(self, api):
+        api.return_value = {"success": True}
+        ci.update_description("Demo")
+        api.assert_called_once_with("https://mods.factorio.com/api/v2/mods/edit_details",
+                                    fields={"mod": "Demo", "description": "Demo mod"}, token="edit-only-key")
+        self.assertFalse((self.root / "dist").exists())
+        api.return_value = {}
+        with self.assertRaisesRegex(ValueError, "successful description update"):
+            ci.update_description("Demo")
+
+    @patch.dict("os.environ", {}, clear=True)
+    @patch.object(ci, "api")
+    def test_update_description_requires_edit_credentials_before_contacting_portal(self, api):
+        with self.assertRaisesRegex(ValueError, "Edit Mods"):
+            ci.update_description("Demo")
+        api.assert_not_called()
+
+    @patch.object(ci.urllib.request, "urlopen")
+    def test_details_request_uses_authenticated_multipart_without_a_file(self, urlopen):
+        urlopen.return_value.__enter__.return_value.read.return_value = b'{"success":true}'
+        description = "# Space Age\n\nPlanet claims & passenger access — updated.\n"
+        ci.request("https://mods.factorio.com/api/v2/mods/edit_details",
+                   fields={"mod": "Demo", "description": description}, token="test-key")
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.get_method(), "POST")
+        self.assertEqual(request.get_header("Authorization"), "Bearer test-key")
+        self.assertTrue(request.get_header("Content-type").startswith("multipart/form-data; boundary="))
+        self.assertIn(description.encode(), request.data)
+        self.assertIn(b'name="mod"\r\n\r\nDemo\r\n', request.data)
+        self.assertNotIn(b'filename=', request.data)
+        self.assertNotIn(b'test-key', request.data)
 
 
 if __name__ == "__main__":

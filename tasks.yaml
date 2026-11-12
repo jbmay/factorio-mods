@@ -91,6 +91,21 @@ tasks:
             --entrypoint python \
             "${TEST_IMAGE}" tools/mod_ci.py tag-matrix --tag "${TAG}" > dist/releases.json
 
+  - name: update-description
+    description: Update the portal Information page from description.md (requires MOD and an Edit Mods API key)
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          : "${MOD:?Select a mod with --set MOD=directory}"
+          : "${FACTORIO_API_KEY:?Export FACTORIO_API_KEY with Edit Mods permission}"
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --env FACTORIO_API_KEY \
+            --entrypoint python \
+            "${TEST_IMAGE}" tools/mod_ci.py update-description "${MOD}"
+
   - name: publish
     description: Publish the tested ZIP using the same image (requires MOD, TAG, and FACTORIO_API_KEY)
     actions:

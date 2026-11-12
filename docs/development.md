@@ -21,7 +21,7 @@ GitHub separately from the files in this repository.
 | `RELEASE_PLEASE_TOKEN` | `trusted` environment | Bot PAT with Contents, Issues, and Pull requests write permissions. Its PRs and tags trigger workflows, unlike resources created with `GITHUB_TOKEN`. |
 | `FACTORIO_USERNAME` | `trusted` environment | Factorio account username for dependency downloads. |
 | `FACTORIO_TOKEN` | `trusted` environment | Account download/service token from Factorio profile/player data, distinct from the portal API key. |
-| `FACTORIO_API_KEY` | `trusted` environment | Portal key with **Upload Mods** and **Publish Mods** permissions for subsequent releases and first-time listings. |
+| `FACTORIO_API_KEY` | `trusted` environment | Portal key with **Upload Mods**, **Publish Mods**, and **Edit Mods** permissions for releases, first-time listings, and Information-page updates from `description.md`. |
 
 The `trusted` environment permits deployments from `main` and tags. All PRs,
 including same-repository and Renovate PRs, use jobs without that environment.
@@ -205,6 +205,7 @@ runner. Other host architectures require Docker's amd64 emulation support.
 | `release-matrix` | Builds the image, reads Release Please JSON from `RELEASE_OUTPUTS`, and writes selected mods and tags to `dist/releases.json`. |
 | `tag-matrix` | Builds the image, validates `TAG` against the release configuration and mod version, and writes its selected mod to `dist/releases.json`. CI publishing uses this task. |
 | `publish` | Builds the image and uploads the single tested ZIP in `dist/` with the selected `MOD` and `TAG`, using `FACTORIO_API_KEY`. This task makes real portal changes. |
+| `update-description` | Builds the image and updates the selected `MOD` Information page from `description.md`, using `FACTORIO_API_KEY` with Edit Mods permission. No ZIP, tag, or version bump is required. |
 
 The `MOD` variable selects a directory under `mods/`; its empty default selects
 all discovered mods for the test tasks. Publication requires an explicit `MOD`
