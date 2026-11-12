@@ -164,12 +164,15 @@ class ModCITests(unittest.TestCase):
             "elevated-rails": ["base"], "quality": ["base"], "recycler": ["base"],
         })
         combinations = []
+        disabled = []
         work = self.root / "expansion"
         def capture(*args, **kwargs):
-            combinations.append({m["name"] for m in ci.read_json(work / "mods/mod-list.json")["mods"]})
+            combinations.append({m["name"] for m in ci.read_json(work / "mods/mod-list.json")["mods"] if m["enabled"]})
+            disabled.append({m["name"] for m in ci.read_json(work / "mods/mod-list.json")["mods"] if not m["enabled"]})
         run.side_effect = capture
         ci.run_engine("Demo", work)
         self.assertEqual(combinations[:2], [{"base", "Demo"}] * 2)
+        self.assertEqual(disabled[:2], [{"space-age", "elevated-rails", "quality", "recycler"}] * 2)
         self.assertEqual(combinations[2:], [{"base", "Demo", "space-age", "elevated-rails", "quality", "recycler"}] * 2)
         commands = [call.args[0] for call in run.call_args_list]
         self.assertIn(str(work / "space-age-smoke.zip"), commands[2])
@@ -182,6 +185,73 @@ class ModCITests(unittest.TestCase):
         self.write("ci.json", config)
         with self.assertRaisesRegex(ValueError, "space_age must be a boolean"):
             ci.validate("Demo")
+
+    @patch.object(ci.subprocess, "run")
+    def test_runtime_suites_are_temporary_and_report_individual_engine_cases(self, run):
+        fixture = self.root / "tests/Demo/engine/vehicles.lua"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_text("return function(context) script.finish_test(true) end")
+        archive = ci.package("Demo")
+        original = archive.read_bytes()
+        work = self.root / "runtime"
+        mods = work / "mods"
+        mods.mkdir(parents=True)
+        ci.shutil.copy2(archive, mods)
+        config = {"runtime_tests": ["vehicles"], "factorio": "2.1.24"}
+        report = ci.TestReport()
+        def simulate(args, **kwargs):
+            mode = args[-1].rsplit(":", 1)[-1]
+            output = work / "data/script-output" / f"mod-ci-vehicles-{mode}.json"
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps([{"name": "claims survive reload", "status": "passed"}]))
+        run.side_effect = simulate
+        for mode in ("base-game", "space-age"):
+            ci.run_runtime_tests("Demo", config, archive, mods, ["factorio"], work / "smoke.zip", work, mode, report)
+        control = (mods / archive.stem / "control.lua").read_text()
+        self.assertEqual(control.count("-- mod-ci runtime test loader"), 1)
+        self.assertTrue((mods / archive.stem / "ci-runtime/vehicles.lua").exists())
+        self.assertEqual(archive.read_bytes(), original)
+        with zipfile.ZipFile(archive) as z:
+            self.assertFalse(any("ci-runtime" in name for name in z.namelist()))
+            self.assertNotIn(b"mod-ci runtime test loader", z.read("Demo_1.0.0/control.lua"))
+        self.assertEqual(report.cases[0], {"name": "Demo: base-game: claims survive reload", "status": "passed"})
+        self.assertEqual(run.call_args_list[0].args[0][-2:], ["--test-arg", "mod-ci:vehicles:base-game"])
+
+    @patch.object(ci.subprocess, "run")
+    def test_runtime_failure_keeps_completed_assertions_and_never_passes_suite(self, run):
+        fixture = self.root / "tests/Demo/engine/vehicles.lua"
+        fixture.parent.mkdir(parents=True)
+        fixture.write_text("return function(context) end")
+        archive = ci.package("Demo")
+        work = self.root / "runtime"
+        mods = work / "mods"
+        mods.mkdir(parents=True)
+        ci.shutil.copy2(archive, mods)
+        output = work / "data/script-output/mod-ci-vehicles-space-age.json"
+        output.parent.mkdir(parents=True)
+        # A stale report must not turn an engine run with no assertions into a pass.
+        output.write_text('[{"name":"stale","status":"passed"}]')
+        report = ci.TestReport()
+        config = {"runtime_tests": ["vehicles"], "factorio": "2.1.24"}
+        with self.assertRaisesRegex(ValueError, "did not report successful assertions"):
+            ci.run_runtime_tests("Demo", config, archive, mods, ["factorio"], work / "smoke.zip", work, "space-age", report)
+        def fail(args, **kwargs):
+            output.write_text(json.dumps([{"name": "claim car", "status": "passed"},
+                                          {"name": "cross-planet summon", "status": "failed"}]))
+            raise ci.subprocess.CalledProcessError(1, args)
+        run.side_effect = fail
+        report = ci.TestReport()
+        with self.assertRaises(ci.subprocess.CalledProcessError):
+            ci.run_runtime_tests("Demo", config, archive, mods, ["factorio"], work / "smoke.zip", work, "space-age", report)
+        self.assertEqual([case["status"] for case in report.cases], ["passed", "failed", "failed"])
+
+    def test_runtime_suites_require_safe_unique_names_and_supported_engine(self):
+        config = ci.read_json(self.mod / "ci.json")
+        for names in (["../vehicles"], ["vehicles", "vehicles"], ["vehicles"]):
+            config["runtime_tests"] = names
+            self.write("ci.json", config)
+            with self.assertRaises(ValueError):
+                ci.validate("Demo")
 
     @patch.object(ci.subprocess, "run")
     @patch.object(ci, "request")

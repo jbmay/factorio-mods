@@ -12,7 +12,8 @@ GCKI.shortcut_name = 'GCKI_carkey'
 GCKI.carkey_name = 'GCKI_car-key'
 GCKI.ACTION_DELAY = 0
 GCKI.EMPTY_TAB = {}
-script = {active_mods = {['space-age'] = '2.1.24'}, raise_event = noop}
+script = {active_mods = {}, raise_event = noop}
+if arg[2] ~= 'base-game' then script.active_mods['space-age'] = '2.1.24' end
 defines = {events = {script_raised_teleported = 1}, build_check_type = {manual = 1}}
 mod = {GCKI_vehicles = {}, owners = {}, lockers = {}, player_data = {}, force_data = {},
        named_vehicles = {by_id = {}, by_name = {}}, vehicles_orig_color = {}}
@@ -106,6 +107,26 @@ function cases.old_save_claim_needs_no_migration()
   assert(not GCKI_ownership.find(1, vulcanus))
   claim(vehicle(22, vulcanus))
   assert(mod.GCKI_vehicles[11].owner == 1)
+end
+function cases.base_game_claim_lock_unlock_and_summon()
+  assert(not script.active_mods['space-age'])
+  local car = vehicle(11, nauvis)
+  claim(car)
+  GCKI_events.used_key.claim_or_toggle_lock(player, car)
+  assert(car.disabled_by_script and mod.GCKI_vehicles[11].locker == 1)
+  GCKI_events.used_key.claim_or_toggle_lock(player, car)
+  assert(not car.disabled_by_script and not mod.GCKI_vehicles[11].locker)
+  GCKI_events.used_key.summon(player, {x = 5, y = 2})
+  assert(car.position.x == 5 and car.surface == nauvis and mod.GCKI_vehicles[11].owner == 1)
+end
+function cases.base_game_replacing_claim_preserves_old_lock()
+  assert(not script.active_mods['space-age'])
+  local first, second = vehicle(11, nauvis), vehicle(22, nauvis)
+  claim(first)
+  GCKI_events.used_key.claim_or_toggle_lock(player, first)
+  claim(second)
+  assert(not mod.GCKI_vehicles[11].owner and mod.GCKI_vehicles[11].locker == 1)
+  assert(first.disabled_by_script and mod.GCKI_vehicles[22].owner == 1)
 end
 function cases.base_game_keeps_single_global_claim()
   script.active_mods['space-age'] = nil
