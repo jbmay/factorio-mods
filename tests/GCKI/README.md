@@ -8,6 +8,7 @@ the Lua regressions, syntax checks and packaging without engine downloads.
 | --- | --- |
 | Base game | One global claimed vehicle, lock/unlock, replacing a claim without unlocking the old car, local summoning, and summoning across non-planet surfaces. |
 | Space Age | Separate claims on Nauvis, Vulcanus, Fulgora, Gleba and Aquilo; independent locking, unlocking and summoning; no cross-planet fallback without a local claim; replacement on one planet preserves the others. |
+| Key targeting and range | Claiming and lock changes work at any distance in character and remote views. Summoning uses the attached character's position and reach, with the existing long-reach setting. Selected Spidertrons take priority over the ground search. |
 | Platform guards | The shortcut, keyboard input and existing key tool cannot summon onto a platform. Returning to the character restores shortcut availability. |
 | Owner access to locked vehicles | The lock holder can enter either seat, drive and open the vehicle interface while locked. Locking while seated retains the owner; other players may ride as passengers but are rejected from the driver seat and inventory windows even during cooldowns. Seat switching cannot bypass the driver lock. Replacing a claim preserves the original lock holder's access. Mining still requires unlocking. |
 | Persistence | Both engine suites run Factorio's `game.reload_mods()` and verify the stored vehicle references, unit numbers, surfaces, positions, owners and lockers. Claimed cars remain summonable after reloading. |
@@ -27,7 +28,7 @@ locking while a passenger is already seated, redirection to an empty passenger
 seat, and passenger-to-driver swaps.
 
 The engine fixture in `engine/vehicles.lua` uses real players, cars and planet
-surfaces and calls the production key handlers. Each scripted click resets the
+surfaces and calls the production key handlers. The Spidertron regression supplies a selection event containing a real Spidertron at a click outside its ground footprint; it does not simulate a graphical mouse or the body animation. Fast Lua cases additionally cover highlighted-entity priority and invalid or wrong-surface selections. Each scripted click resets the
 input cooldown because the fixture executes several interactions in one tick;
 reach, collision and ownership checks remain active. Test areas are cleared and
 given flat ground, so these tests do not establish vehicle suitability for every

@@ -261,7 +261,10 @@ GCKI.show("dy <= tolerance", dy <= tolerance)
       end
 GCKI.show("mode", mode)
 
-      GCKI_events.used_key.key_on_position(player, position, mode)
+      GCKI_events.used_key.key_on_position(player, position, mode, {
+        selected = player.selected,
+        entities = event_data.entities,
+      })
 
     -- Player selected an area: Display GUI if at least one vehicle is selected!
     elseif next(event_data.entities) then
@@ -1229,6 +1232,7 @@ GCKI.show("player.is_shortcut_available("..GCKI.shortcut_name..")",
           player.is_shortcut_available(GCKI.shortcut_name))
       if player.is_shortcut_available(GCKI.shortcut_name) then
         player.set_shortcut_available(GCKI.shortcut_name, false)
+        GCKI_gui.update_key_status(player)
         GCKI.writeDebug("Disabled  shortcut %s for %s!",
                         {GCKI.enquote(GCKI.shortcut_name), GCKI.argprint(player)})
 
@@ -1281,7 +1285,7 @@ GCKI.show("f_data_new", f_data_new)
                               {GCKI.enquote(GCKI.shortcut_name), GCKI.argprint(player)})
       if f_data_new.show_shortcuts then
         GCKI.writeDebug("Yes!")
-        player.set_shortcut_available(GCKI.shortcut_name, GCKI_ownership.can_use(player))
+        GCKI_ownership.update_shortcut(player)
       else
         GCKI.writeDebug("No!")
       end
@@ -1579,7 +1583,7 @@ common_events.on_research_finished = function(event)
 
     -- Make shortcut available for all players on the force
     for p, player in pairs(force.players) do
-      player.set_shortcut_available(GCKI.shortcut_name, GCKI_ownership.can_use(player))
+      GCKI_ownership.update_shortcut(player)
       GCKI.writeDebug("Enabled shortcut %s for %s!",
                       {GCKI.enquote(GCKI.shortcut_name), GCKI.argprint(player)})
     end
@@ -1639,7 +1643,7 @@ GCKI.show("unlock", unlock)
     local shortcut = GCKI.shortcut_name
     for p, player in pairs(force.players) do
       -- Toggle shortcut
-      player.set_shortcut_available(shortcut, unlock and GCKI_ownership.can_use(player))
+      GCKI_ownership.update_shortcut(player)
       GCKI.writeDebug("%sabled  shortcut %s for %s!",
                       {unlock and "En" or "Dis", GCKI.enquote(shortcut), GCKI.argprint(player)})
 
@@ -1713,7 +1717,7 @@ common_events.on_force_reset = function(event)
 
     for p, player in pairs(force.players) do
       -- Toggle shortcut
-      player.set_shortcut_available(shortcut, false)
+      GCKI_ownership.update_shortcut(player)
       GCKI.writeDebug("Disabled  shortcut %s for %s!",
                       {GCKI.enquote(shortcut), GCKI.argprint(player)})
 

@@ -149,76 +149,65 @@ GCKI.entered_function({player, vehicle})
     return
   end
 
-  -- Do nothing if vehicle is not in reach of player!
-  if not GCKI_player.is_in_reach(player, vehicle.position) then
-    GCKI.output(player, {
-      "GCKI-messages.player-vehicle_too_far",
-      GCKI.loc_name(vehicle),
-      GCKI_player.get_player_reach(player)
-    })
-
-  -- Player may claim/toggle lock of vehicle
-  else
-GCKI.writeDebug("Vehicle is in reach of player!")
-    local v_data = GCKI_vehicle.get_vehicle_data(vehicle)
-    --~ local owner = v_data and v_data.owner and game.players[v_data.owner]
-    local owner = v_data and v_data.owner and game.get_player(v_data.owner)
+  -- Claiming and changing locks do not require character reach.
+  local v_data = GCKI_vehicle.get_vehicle_data(vehicle)
+  --~ local owner = v_data and v_data.owner and game.players[v_data.owner]
+  local owner = v_data and v_data.owner and game.get_player(v_data.owner)
 
 
-  GCKI.show("owner", GCKI.argprint(owner))
+GCKI.show("owner", GCKI.argprint(owner))
 
-    -- Player tried to steal a vehicle
-    if owner and player ~= owner then
+  -- Player tried to steal a vehicle
+  if owner and player ~= owner then
 GCKI.writeDebug("Vehicle belongs to %s!", {GCKI.argprint(owner)})
-      GCKI_messages.used_key.info_player_not_owner(owner, player, vehicle)
+    GCKI_messages.used_key.info_player_not_owner(owner, player, vehicle)
 
-    -- Vehicle belongs to player, player wants to lock/unlock it
-    elseif player == owner then
+  -- Vehicle belongs to player, player wants to lock/unlock it
+  elseif player == owner then
 GCKI.writeDebug("Vehicle belongs to player!")
-      used_key.toggle_lock(owner, vehicle)
+    used_key.toggle_lock(owner, vehicle)
 
-    -- Vehicle has no owner, but may be locked because the last owner claimed another one
-    else
-      GCKI.writeDebug("%s has no owner. Check whether it's locked!",
-                      {GCKI.argprint(vehicle)})
-      --~ local locker = v_data and v_data.locker and game.players[v_data.locker]
-      local locker = v_data and v_data.locker and game.get_player(v_data.locker)
+  -- Vehicle has no owner, but may be locked because the last owner claimed another one
+  else
+    GCKI.writeDebug("%s has no owner. Check whether it's locked!",
+                    {GCKI.argprint(vehicle)})
+    --~ local locker = v_data and v_data.locker and game.players[v_data.locker]
+    local locker = v_data and v_data.locker and game.get_player(v_data.locker)
 GCKI.show("locker", locker)
 
-      -- Vehicle is unlocked
-      if not locker then
+    -- Vehicle is unlocked
+    if not locker then
 GCKI.writeDebug("Vehicle is unlocked!")
-        -- Player can only claim empty vehicles!
-        if not is_player_inside(player, vehicle) then
+      -- Player can only claim empty vehicles!
+      if not is_player_inside(player, vehicle) then
 GCKI.writeDebug("Nobody is inside, can claim unlocked vehicle!")
-          claim_unlocked_vehicle(player, vehicle)
+        claim_unlocked_vehicle(player, vehicle)
 
-          -- Use entity_label as custom name if this is a "spider-vehicle" prototype
-          if vehicle.type == "spider-vehicle" and vehicle.entity_label and
-              not mod.named_vehicles.by_id[vehicle.unit_number] then
+        -- Use entity_label as custom name if this is a "spider-vehicle" prototype
+        if vehicle.type == "spider-vehicle" and vehicle.entity_label and
+            not mod.named_vehicles.by_id[vehicle.unit_number] then
 
-            --~ GCKI_vehicle.edit_vehicle_name(player, vehicle, vehicle.entity_label)
-            local args = {
-              player = player,
-              vehicle = vehicle,
-              new_name = vehicle.entity_label
-            }
-            GCKI_vehicle.edit_vehicle_name(args, script.mod_name)
-            GCKI.writeDebug("Added %s to vehicle names!", {GCKI.argprint(vehicle.entity_label)})
-          end
-
+          --~ GCKI_vehicle.edit_vehicle_name(player, vehicle, vehicle.entity_label)
+          local args = {
+            player = player,
+            vehicle = vehicle,
+            new_name = vehicle.entity_label
+          }
+          GCKI_vehicle.edit_vehicle_name(args, script.mod_name)
+          GCKI.writeDebug("Added %s to vehicle names!", {GCKI.argprint(vehicle.entity_label)})
         end
 
-      -- Vehicle was locked by player, but player claimed another vehicle meanwhile
-      elseif player == locker then
-GCKI.writeDebug("Vehicle has been locked by player. Claiming it again!")
-          claim_locked_vehicle(player, vehicle)
-
-      -- Vehicle has been locked by somebody else
-      else
-GCKI.writeDebug("Vehicle has been locked by somebody else!")
-        GCKI_messages.used_key.info_cant_claim_locked(player, locker, vehicle)
       end
+
+    -- Vehicle was locked by player, but player claimed another vehicle meanwhile
+    elseif player == locker then
+GCKI.writeDebug("Vehicle has been locked by player. Claiming it again!")
+        claim_locked_vehicle(player, vehicle)
+
+    -- Vehicle has been locked by somebody else
+    else
+GCKI.writeDebug("Vehicle has been locked by somebody else!")
+      GCKI_messages.used_key.info_cant_claim_locked(player, locker, vehicle)
     end
   end
 end
@@ -229,7 +218,7 @@ end
 ------------------------------------------------------------------------------------
 --      Check whether the key has been used on a vehicle (claim, lock/unlock)     --
 ------------------------------------------------------------------------------------
-used_key.find_vehicle = function(surface, position)
+used_key.find_vehicle = function(surface, position, selection)
   GCKI.entered_function({surface, position})
 
   surface = GCKI.ascertain_surface(surface)
@@ -237,6 +226,20 @@ used_key.find_vehicle = function(surface, position)
     GCKI.arg_err(surface, "surface specification")
   end
   position = GCKI.normalize_position(position)
+
+  local function supported(entity)
+    local types = mod.vehicle_prototypes.map
+    return entity and entity.valid and entity.surface == surface and
+           types[entity.type] and types[entity.type][entity.name]
+  end
+  -- Use Factorio's visual selection before searching ground collision boxes.
+  -- Spidertron's elevated, animated body may be outside its ground footprint.
+  if selection then
+    if supported(selection.selected) then return selection.selected end
+    for _, entity in ipairs(selection.entities or {}) do
+      if supported(entity) then return entity end
+    end
+  end
 
   --~ local vehicles = surface.find_entities_filtered({
     --~ -- area = area_create(position, 1),
@@ -256,7 +259,7 @@ GCKI.show("Found vehicles", vehicles)
   for v, v_entity in pairs(vehicles) do
 GCKI.writeDebug("%s:\t%s", {v, GCKI.argprint(v_entity)})
     --~ if global.vehicle_prototypes_map[v_entity.type][v_entity.name] then
-    if mod.vehicle_prototypes.map[v_entity.type][v_entity.name] then
+    if supported(v_entity) then
       vehicle = v_entity
       break
     end
@@ -734,7 +737,7 @@ end
 ------------------------------------------------------------------------------------
 --                             KEY SELECTED A POSITION                            --
 ------------------------------------------------------------------------------------
-used_key.key_on_position = function(player, position, mode)
+used_key.key_on_position = function(player, position, mode, selection)
   GCKI.entered_function({player, position, mode})
 
   player = GCKI.ascertain_player(player)
@@ -781,7 +784,7 @@ GCKI.show("mode", mode)
   -- Look for vehicles at the position the key was used at. If we find one, it will
   -- be valid!
   GCKI.writeDebugNewBlock("Looking for vehicle at click position!")
-  local vehicle = GCKI_events.used_key.find_vehicle(player.surface, position)
+  local vehicle = GCKI_events.used_key.find_vehicle(player.surface, position, selection)
 GCKI.show("Found vehicle", GCKI.argprint(vehicle))
 GCKI.show("vehicle force", GCKI.argprint(vehicle and vehicle.force))
 GCKI.show("player force", GCKI.argprint(player and player.force))

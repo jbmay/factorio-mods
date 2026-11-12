@@ -40,7 +40,7 @@ function ownership.refresh(player_index, exclude)
   mod.owners[player_index] = found
 end
 
-function ownership.can_use(player, notify)
+function ownership.unavailable_reason(player)
   local physical = player.physical_surface or player.surface
   local reason
   if player.surface.platform or physical.platform then
@@ -48,6 +48,11 @@ function ownership.can_use(player, notify)
   elseif physical ~= player.surface then
     reason = "keys-in-remote-view"
   end
+  return reason
+end
+
+function ownership.can_use(player, notify)
+  local reason = ownership.unavailable_reason(player)
   if reason and notify then GCKI.output(player, {"GCKI-messages." .. reason}) end
   return not reason
 end
@@ -55,9 +60,11 @@ end
 function ownership.update_shortcut(player)
   local force = mod.force_data and mod.force_data[player.force.name]
   local data = mod.player_data and mod.player_data[player.index]
-  local available = force and force.show_shortcuts and not (data and data.suspended)
-                    and ownership.can_use(player) or false
+  local reason = ownership.unavailable_reason(player)
+  local unlocked = force and force.show_shortcuts and not (data and data.suspended)
+  local available = unlocked and not reason or false
   player.set_shortcut_available(GCKI.shortcut_name, available)
+  GCKI_gui.update_key_status(player, unlocked and reason or nil)
   local cursor = player.cursor_stack
   if not available and cursor and cursor.valid_for_read and cursor.name == GCKI.carkey_name then
     cursor.clear()

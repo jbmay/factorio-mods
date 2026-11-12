@@ -9,7 +9,7 @@ This mod is based on [Gizmos Car Keys](https://mods.factorio.com/mod/Gizmos_Car_
 # Usage #
 The keys will be available as long as an unlock technology has been researched. Usually that will be Automobilism, but there may be others depending on the mods you are using (e.g. Ships if [Cargo Ships](https://mods.factorio.com/mod/cargo-ships) is active). Take the keys and click on a vehicle to claim it. Click *on the same vehicle* again to lock or unlock it. By using the keys *on another vehicle*, you replace your claimed vehicle on that planet when Space Age is enabled, or your single global vehicle without Space Age. (Hint: If you want to exchange vehicles, you should lock your old vehicle before giving it up! As of version 1.1.2, any unlocked vehicle without a player character inside can be claimed by *any* player. In other words, vehicles can be stolen by another force!)
 
-If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach. With Space Age enabled, this summons only the vehicle claimed on your current planet.
+Claiming, locking and unlocking work at any distance on your character's current surface, in both normal and remote/map view. If you use the keys on a free position where the vehicle can be placed, it will be summoned there only if the position is within your physical character's reach. Moving the remote camera does not extend that range, including while riding in a vehicle. Summoning requires an attached character. With Space Age enabled, this summons only the vehicle claimed on your current planet.
 
 **A locked vehicle remains usable by its owner.** You can enter either seat, drive, and open its inventory without unlocking it, and locking while seated keeps you inside. Other players can ride in passenger seats, even when you are not inside, but cannot drive the vehicle or open its inventory window. If a non-owner enters the driver seat, they are moved to an available passenger seat or ejected if it is occupied. Switching seats cannot bypass the driver lock. The player who locked a vehicle retains access even after claiming a replacement. Locked vehicles must still be unlocked before anyone can mine them.
 
@@ -28,7 +28,7 @@ Space Age is detected automatically. Each player can claim **one vehicle per pla
 
 **Space platforms:** the car-key shortcut is disabled on platforms. The keyboard shortcut and key tool also reject platform use, so you cannot summon a vehicle onto a platform. The shortcut becomes available again when you return to a supported surface and its unlock technology is researched.
 
-Keys cannot be used while remotely viewing a different surface; return to your character's surface first. Custom planets are supported, and surfaces without an associated planet have their own separate assignments.
+Keys cannot be used while remotely viewing a different surface; return to your character's surface first. The shortcut tooltip lists these restrictions. When keys are disabled because of a platform or a different viewed surface, a status beside the **Your vehicles** button shows the current reason when hovered. Custom planets are supported, and surfaces without an associated planet have their own separate assignments.
 
 Without Space Age, each player has **one globally claimed vehicle**, retaining the original claiming, locking, and summoning behavior.
 

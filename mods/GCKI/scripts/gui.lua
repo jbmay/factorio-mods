@@ -4,6 +4,22 @@ mod_gui = require("mod-gui")
 
 local GCKI_gui = {}
 
+-- Shortcut descriptions belong to prototypes and cannot be changed at runtime.
+-- Show the current restriction beside the vehicle-list button instead.
+function GCKI_gui.update_key_status(player, reason)
+  local flow = mod_gui.get_button_flow(player)
+  local label = flow.GCKI_key_status
+  if reason then
+    if not (label and label.valid) then
+      label = flow.add{type = "label", name = "GCKI_key_status"}
+    end
+    label.caption = {"GCKI-messages.keys-unavailable"}
+    label.tooltip = {"GCKI-messages." .. reason}
+  elseif label and label.valid then
+    label.destroy()
+  end
+end
+
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
 --                              Names of GUI elements                             --

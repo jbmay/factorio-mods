@@ -52,6 +52,15 @@ ADMIN_CASES = (
     "admin_recovers_one_abandoned_players_vehicles_on_all_planets",
     "server_console_recovers_vehicle_with_a_removed_owner",
 )
+KEY_CASES = (
+    "summon_reach_uses_character_in_remote_view",
+    "character_reach_preserves_long_reach_setting",
+    "claim_lock_unlock_ignore_distance",
+    "visual_spidertron_selection_precedes_ground_search",
+    "shortcut_reports_remote_surface_and_platform_restrictions",
+)
+BASE_GAME_CASES += KEY_CASES
+SPACE_AGE_CASES += KEY_CASES
 BASE_GAME_CASES += ADMIN_CASES
 SPACE_AGE_CASES += ADMIN_CASES
 BASE_GAME_CASES += LOCK_CASES
