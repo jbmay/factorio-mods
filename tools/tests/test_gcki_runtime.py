@@ -36,6 +36,17 @@ BASE_GAME_CASES = (
 )
 
 
+LOCK_CASES = (
+    "lock_owner_can_enter_drive_and_open_inventory_without_unlocking",
+    "lock_rejects_other_driver_or_passenger_without_ejecting_owner",
+    "locking_occupied_vehicle_keeps_owner_and_closes_other_inventory",
+    "lock_rejects_other_inventory_but_unlock_restores_public_access",
+    "lock_holder_keeps_access_after_claiming_a_replacement",
+)
+BASE_GAME_CASES += LOCK_CASES
+SPACE_AGE_CASES += LOCK_CASES
+
+
 class GCKIBaseGameTests(unittest.TestCase):
     pass
 

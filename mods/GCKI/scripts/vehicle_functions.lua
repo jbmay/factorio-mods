@@ -17,14 +17,11 @@ common_vehicle.lock_vehicle = function(vehicle)
 
   GCKI.writeDebugNewBlock("Do we have a valid vehicle?")
   if vehicle and vehicle.valid then
-    GCKI.writeDebug("Yes: turning off properties!")
-    -- Default locked status
-    vehicle.disabled_by_script = true
-    for p, property in pairs({"operable", "minable_flag"}) do
-GCKI.show("vehicle["..property.."]", vehicle[property])
-      vehicle[property] = false
-GCKI.show("New value", vehicle[property])
-    end
+    -- Entry and inventory access are enforced per player by event handlers.
+    -- Keep normal operation (including the existing compatibility adjustments),
+    -- but prevent anybody from picking up a locked vehicle.
+    common_vehicle.unlock_vehicle(vehicle)
+    vehicle.minable_flag = false
   end
 
   GCKI.entered_function({vehicle}, "leave")
@@ -70,6 +67,37 @@ common_vehicle.unlock_vehicle = function(vehicle)
   end
 
   GCKI.entered_function({vehicle}, "leave")
+end
+
+
+-- A lock belongs to the player who set it, even after claiming a replacement.
+-- Accept the current owner too; ordinary claims keep owner and locker identical.
+common_vehicle.can_access_vehicle = function(vehicle, player)
+  local data = vehicle and vehicle.valid and mod.GCKI_vehicles[vehicle.unit_number]
+  if not (data and data.locker) then return true end
+  player = GCKI.ascertain_player(player)
+  return player and player.valid and
+         (player.index == data.locker or player.index == data.owner) or false
+end
+
+-- Never clear both seats indiscriminately: a rejected passenger must not eject
+-- the legitimate driver. Run this before input throttling and replacement skips.
+common_vehicle.enforce_vehicle_lock = function(vehicle)
+  local data = vehicle and vehicle.valid and mod.GCKI_vehicles[vehicle.unit_number]
+  if not (data and data.locker) then return end
+  for role, occupant in pairs(common_vehicle.get_occupants(vehicle) or {}) do
+    if occupant.is_player and not common_vehicle.can_access_vehicle(vehicle, occupant.entity) then
+      vehicle["set_" .. role](nil)
+      GCKI.output(occupant.entity, {"GCKI-messages.vehicle-access-denied", GCKI.loc_name(vehicle)})
+    end
+  end
+  -- Also close inventories that were already open when the lock was set.
+  for _, player in pairs(game.players) do
+    if player.opened == vehicle and not common_vehicle.can_access_vehicle(vehicle, player) then
+      player.opened = nil
+      GCKI.output(player, {"GCKI-messages.vehicle-access-denied", GCKI.loc_name(vehicle)})
+    end
+  end
 end
 
 

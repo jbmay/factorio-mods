@@ -163,28 +163,46 @@ def packaged_files(path):
 
 def changelog(path, version):
     original = (path / "changelog.txt").read_text(encoding="utf-8")
-    if re.search(rf"^Version: {re.escape(version)}\s*$", original, re.MULTILINE):
-        return original.encode()
-    # Release Please generates Markdown; the portal requires Factorio's text format.
+    existing = set(re.findall(r"^Version: (" + VERSION + r")\s*$", original, re.MULTILINE))
+    # Each release ZIP needs the entire history: generated entries from earlier
+    # ZIPs are not written back into the imported source changelog.txt.
     markdown = path / "CHANGELOG.md"
     if not markdown.exists():
+        if version in existing:
+            return original.encode()
         raise ValueError("New version has no Release Please CHANGELOG.md entry")
-    text = markdown.read_text()
-    match = re.search(
-        rf"^## \[?{re.escape(version)}\]?(?:[^\n]*)\((\d{{4}}-\d{{2}}-\d{{2}})\)\s*\n(.*?)(?=^## |\Z)",
-        text, re.MULTILINE | re.DOTALL,
+    releases = re.finditer(
+        r"^## \[?(" + VERSION + r")\]?(?:[^\n]*)\((\d{4}-\d{2}-\d{2})\)\s*\n(.*?)(?=^## |\Z)",
+        markdown.read_text(), re.MULTILINE | re.DOTALL,
     )
-    if not match:
+    converted = {}
+    for release in releases:
+        number, date, body = release.groups()
+        if version_tuple(number) > version_tuple(version) or number in existing:
+            continue
+        notes = []
+        for line in body.splitlines():
+            if line.startswith("* ") or line.startswith("- "):
+                line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line[2:])
+                notes.append("    - " + line.replace("**", ""))
+        if not notes:
+            raise ValueError(f"Release changelog has no entries for {number}")
+        entry = "-" * 99 + f"\nVersion: {number}\nDate: {date}\n\n  Changes:\n"
+        converted[number] = entry + "\n".join(notes)
+    if version not in existing and version not in converted:
         raise ValueError("Cannot find dated release notes for the package version")
-    notes = []
-    for line in match[2].splitlines():
-        if line.startswith("* ") or line.startswith("- "):
-            line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line[2:])
-            notes.append("    - " + line.replace("**", ""))
-    if not notes:
-        raise ValueError("Release changelog has no entries")
-    entry = "-" * 99 + f"\nVersion: {version}\nDate: {match[1]}\n\n  Changes:\n"
-    return (entry + "\n".join(notes) + "\n\n" + original).encode()
+    if not converted:
+        return original.encode()
+    # Keep existing text entries authoritative and merge missing Markdown entries
+    # in version order, even if the text file already contains the current release.
+    headers = list(re.finditer(r"^-{3,}\nVersion: (" + VERSION + r")\s*\n", original, re.MULTILINE))
+    prefix = original[:headers[0].start()] if headers else original
+    entries = dict(converted)
+    for index, header in enumerate(headers):
+        end = headers[index + 1].start() if index + 1 < len(headers) else len(original)
+        entries[header[1]] = original[header.start():end].strip("\n")
+    return (prefix + "\n\n".join(entries[number] for number in sorted(entries, key=version_tuple, reverse=True))
+            + "\n").encode()
 
 
 def package(mod, output=None):

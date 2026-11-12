@@ -11,6 +11,8 @@ The keys will be available as long as an unlock technology has been researched. 
 
 If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach. With Space Age enabled, this summons only the vehicle claimed on your current planet.
 
+**A locked vehicle remains usable by its owner.** You can enter either seat, drive, and open its inventory without unlocking it, and locking while seated keeps you inside. Other players are ejected from locked vehicles and cannot open their inventory window. The player who locked a vehicle retains access even after claiming a replacement. Locked vehicles must still be unlocked before anyone can mine them.
+
 This mod supports vehicle grids and everything else a vehicle might contain. Without Space Age, the single globally claimed vehicle can also be summoned to another surface. Other players riding in the vehicle travel with it unless they have chosen to stay on the original surface through their per-player runtime setting.
 
 Other than the original mod, this one should be safe to use in multiplayer games.
@@ -78,7 +80,7 @@ The argument `vehicle` must be a `LuaEntity` of type `"car"` or `"spider-vehicle
 *If you can provide a localization for another language, I'd  be happy to include it! :-)*
 
 # Uninstalling GCKI #
-If you want to remove GCKI from a game, you should make sure that there are no locked vehicles left behind! Otherwise, you won't be able to drive them, mine them, or open their inventory. Likewise, if you are participating in a multiplayer game and intend to never join your current server again, you should unlock or reset all vehicles owned or locked by you so that other players can use them.
+Before removing GCKI from a game, unlock or reset your vehicles so their mining protection is cleared. Likewise, if you are participating in a multiplayer game and intend to never join your current server again, unlock or reset all vehicles owned or locked by you so that other players can use them.
 
 # Help needed #
 I've spent quite some time on testing this mod to make sure it's safe to use in multiplayer mode. However, doing these tests locally may not be reliable. So I'm interested in any feedback on issues while playing multiplayer games!

@@ -46,8 +46,26 @@ return function(context)
 
   local function assert_locked(player, car)
     assert(GCKI_vehicle.get_locker(car) == player, 'vehicle locker was not preserved')
-    assert(car.disabled_by_script and not car.operable and not car.minable_flag,
+    assert(not car.disabled_by_script and car.operable and not car.minable_flag,
            'locked vehicle flags were not preserved')
+  end
+
+  local function owner_access(player, car)
+    for _, role in ipairs({'driver', 'passenger'}) do
+      car['set_' .. role](player)
+      mod.player_data[player.index].last_action_tick = game.tick
+      mod.player_data[player.index].skip_state_change = 2
+      GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
+      assert(player.vehicle == car and GCKI_vehicle.get_occupants(car)[role].entity == player,
+             'lock ejected the owner from ' .. role .. ' seat')
+      assert_locked(player, car)
+      player.opened = car
+      GCKI_events.on_gui_opened{player_index = player.index, entity = car}
+      assert(player.opened == car, 'owner could not open locked inventory')
+      player.opened = nil
+      car['set_' .. role](nil)
+    end
+    mod.player_data[player.index].skip_state_change = nil
   end
 
   local function lock_unlock(player, car)
@@ -58,6 +76,7 @@ return function(context)
            car.operable and car.minable_flag, 'vehicle did not unlock')
     click(player, car.position)
     assert_locked(player, car)
+    owner_access(player, car)
   end
 
   local function snapshot(state, car, owner, locker)
@@ -214,6 +233,48 @@ return function(context)
       local state = {mode = context.mode, player = player.index, cars = {}}
       mod.ci_vehicle_test = state
       if context.mode == 'space-age' then space_age(player, state) else base_game(player, state) end
+      case('existing disabled locks become usable by their owner on upgrade', function()
+        for _, saved in ipairs(state.cars) do
+          saved.entity.disabled_by_script = true
+          saved.entity.operable = false
+        end
+        GCKI_events.on_configuration_changed{name = 'on_configuration_changed'}
+        for _, saved in ipairs(state.cars) do
+          move(player, saved.entity.surface)
+          assert_locked(player, saved.entity)
+          owner_access(player, saved.entity)
+        end
+      end)
+      case('locking while the owner is driving keeps the owner in the vehicle', function()
+        local car = state.cars[#state.cars].entity
+        move(player, car.surface)
+        car.set_driver(player)
+        click(player, car.position) -- unlock
+        click(player, car.position) -- lock again while driving
+        assert(player.vehicle == car); assert_locked(player, car)
+        car.set_driver(nil)
+      end)
+      case('another lock holder blocks entry and inventory even during input cooldown', function()
+        local car = state.cars[#state.cars].entity
+        local data = mod.GCKI_vehicles[car.unit_number]
+        local owner, locker = data.owner, data.locker
+        -- Native tests supply one real player. A different lock-holder ID makes
+        -- that real player unauthorized; Lua regressions also test two players
+        -- occupying the driver/passenger seats simultaneously.
+        data.owner, data.locker = nil, player.index + 1000
+        for _, role in ipairs({'driver', 'passenger'}) do
+          car['set_' .. role](player)
+          mod.player_data[player.index].last_action_tick = game.tick
+          mod.player_data[player.index].skip_state_change = 2
+          GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
+          assert(not player.vehicle, 'unauthorized player remained in ' .. role .. ' seat')
+        end
+        player.opened = car
+        GCKI_events.on_gui_opened{player_index = player.index, entity = car}
+        assert(not player.opened, 'unauthorized inventory stayed open')
+        data.owner, data.locker = owner, locker
+        mod.player_data[player.index].skip_state_change = nil
+      end)
       state.results = results
       state.awaiting_reload = true
       -- This uses Factorio's real mod save/load lifecycle, preserving LuaEntity

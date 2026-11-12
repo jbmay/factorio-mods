@@ -96,6 +96,7 @@ GCKI_event_lists = {
     "on_player_removed",
     "on_player_driving_changed_state",
     "on_player_changed_force",
+    "on_gui_opened",
     "on_player_changed_surface",
     "on_player_controller_changed",
     "on_forces_merging",

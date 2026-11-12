@@ -35,18 +35,14 @@ GCKI.show("player", GCKI.argprint(player))
 GCKI.show("vehicle", GCKI.argprint(vehicle))
 GCKI.show("occupants", GCKI.argprint(occupants))
 GCKI.show("locker", GCKI.argprint(locker))
-  -- Player has locked the vehicle, we can't enter it. Eject everybody!
+  -- A lock restricts other players, not its owner.
   if locker then
-    GCKI.writeDebug("%s has entered a locked vehicle!", {GCKI.argprint(player)})
-    vehicle.set_passenger(nil)
-    vehicle.set_driver(nil)
-    GCKI.output(player, {
-      "GCKI-messages.owner-enter_locked_vehicle",
-      GCKI.loc_name(vehicle)
-    })
+    GCKI_vehicle.enforce_vehicle_lock(vehicle)
+    return
+  end
 
   -- Vehicle is unlocked, somebody is inside.
-  elseif occupants then
+  if occupants then
     GCKI.argprint("%s has entered a vehicle with occupants!",
                   {GCKI.argprint(player)})
     local driver        = occupants.driver and occupants.driver.entity
@@ -99,42 +95,9 @@ GCKI.show("passenger", GCKI.argprint(passenger))
 end
 
 
--- Player tried to enter a locked vehicle. Eject everybody who may still be inside!
+-- Reject unauthorized occupants without removing the owner from either seat.
 local function eject_from_locked(data)
-  GCKI.entered_function({data})
-
-  local vehicle         = data.vehicle          -- Vehicle the player entered or left
-  local occupants       = data.occupants        -- Optional
-  local locker          = data.locker           -- Optional
-
-  local msg, player_data
-
-  if vehicle and vehicle.valid then
-
-    -- If vehicle has driver/passenger, inform them that the vehicle has been locked.
-    for _, occupant in pairs(occupants or {}) do
-      if occupant.entity and occupant.entity.valid then
-        -- Output message to real players
-        if occupant.is_player then
-          player_data = mod.player_data[occupant.index]
-          player_data.last_action_tick = game.tick
-
-          msg = (occupant.entity == locker) and
-                {"GCKI-messages.locker-enter_locked_vehicle", GCKI.loc_name(vehicle)} or
-                {"GCKI-messages.occupant-locked_vehicle_enter", GCKI.loc_name(vehicle), locker.name}
-          GCKI.output(occupant.entity, msg)
-
-        -- Remove dummy characters
-        else
-          occupant.entity.destroy()
-        end
-      end
-    end
-
-    vehicle.set_passenger(nil)
-    vehicle.set_driver(nil)
-  end
-  GCKI.entered_function("leave")
+  GCKI_vehicle.enforce_vehicle_lock(data.vehicle)
 end
 
 
@@ -238,7 +201,7 @@ local function no_or_other_owner(data)
 
   GCKI.writeDebug("This %s belongs to %s!",
                   {GCKI.loc_name(vehicle), owner and owner.name or "nobody"}, "line")
-  -- If vehicle is locked, nobody may enter it!
+  -- If vehicle is locked, only its owner or locker may enter it!
   if locker then
     eject_from_locked(data)
 

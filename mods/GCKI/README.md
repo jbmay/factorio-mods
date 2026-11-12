@@ -37,8 +37,12 @@ The fork conflicts with upstream `GCKI` to prevent duplicate prototypes and
 handlers. Automatic transfer of upstream save data is not implemented, and
 integrations that look for the original mod name require separate review.
 The maintained fork targets Factorio **2.1.24** or newer within the 2.1 series
-and requires **Pi-C_lib >= 2.1.0**. Vehicle locking uses the 2.1 script-controlled
-activation and mining flags. `ci.json` pins the engine and dependency used for smoke tests;
+and requires **Pi-C_lib >= 2.1.0**. Vehicle locks enforce entry and inventory-window
+permissions through events and keep locked vehicles unminable. Owners can enter
+either seat, drive, and open the vehicle interface while the lock stays active.
+The lock holder retains access after claiming another vehicle. On upgrade,
+existing locks are preserved and the old disabling flags are removed.
+`ci.json` pins the engine and dependency used for smoke tests;
 `portal.json` records the upstream identity and first-publication metadata.
 See [shared development notes](../../docs/development.md) for credentials, coverage,
 and the release workflow.

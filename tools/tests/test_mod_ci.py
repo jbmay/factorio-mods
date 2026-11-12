@@ -82,6 +82,35 @@ class ModCITests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no Release Please"):
             ci.changelog(self.mod, "1.0.1")
 
+    def test_changelog_includes_all_fork_releases_without_future_or_duplicate_entries(self):
+        (self.mod / "CHANGELOG.md").write_text(
+            "# Changelog\n\n## [1.2.0](https://example.com) (2026-11-14)\n* Future\n\n"
+            "## [1.1.1](https://example.com) (2026-11-13)\n* Current patch\n\n"
+            "## [1.1.0](https://example.com) (2026-11-12)\n* Space Age\n\n"
+            "## [1.0.1](https://example.com) (2026-11-11)\n* Initial fork\n\n"
+            "## [1.0.0](https://example.com) (2025-01-01)\n* Duplicate upstream\n")
+        result = ci.changelog(self.mod, "1.1.1").decode()
+        self.assertEqual(ci.re.findall(r"^Version: (.*)$", result, ci.re.MULTILINE),
+                         ["1.1.1", "1.1.0", "1.0.1", "1.0.0"])
+        for entry in ("Current patch", "Space Age", "Initial fork", "Imported."):
+            self.assertIn(entry, result)
+        self.assertNotIn("Future", result)
+        self.assertNotIn("Duplicate upstream", result)
+
+    def test_changelog_backfills_history_when_current_version_already_exists_in_text(self):
+        old = (self.mod / "changelog.txt").read_text()
+        (self.mod / "changelog.txt").write_text(
+            "-" * 99 + "\nVersion: 1.1.0\nDate: 2026-11-12\n\n  Changes:\n    - Existing current.\n\n" + old)
+        (self.mod / "CHANGELOG.md").write_text(
+            "## 1.1.0 (2026-11-12)\n* Replacement text\n\n"
+            "## 1.0.1 (2026-11-11)\n* Missing fork release\n")
+        result = ci.changelog(self.mod, "1.1.0").decode()
+        self.assertEqual(ci.re.findall(r"^Version: (.*)$", result, ci.re.MULTILINE),
+                         ["1.1.0", "1.0.1", "1.0.0"])
+        self.assertIn("Existing current.", result)
+        self.assertIn("Missing fork release", result)
+        self.assertNotIn("Replacement text", result)
+
     def test_engine_and_compatibility_metadata_must_agree(self):
         self.info["factorio_version"] = "2.1"
         self.write("info.json", self.info)

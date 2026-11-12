@@ -74,11 +74,13 @@ Files are sorted and written with fixed timestamps and permissions so repeated
 builds with the same source and toolchain produce identical ZIPs. Packaging
 overwrites the existing archive for that name and version.
 
-`changelog(path, version)` supplies the packaged `changelog.txt`. If the source
-changelog already contains the version, its text is used. Otherwise, the function
-extracts that version's dated entry from Release Please's `CHANGELOG.md`, converts
-its bullet points into Factorio's text format, and prepends them to the original
-history. Missing or empty release notes fail packaging. The source changelog is
+`changelog(path, version)` supplies the packaged `changelog.txt`. It converts all
+dated releases in Release Please's `CHANGELOG.md` up to the package version and
+merges missing entries into the imported text history in descending version
+order. Existing text entries remain authoritative and appear once; future
+Markdown releases are excluded. This preserves earlier fork releases in every
+published ZIP instead of including only the newest release. Missing current
+release notes or empty converted entries fail packaging. Source changelogs are
 not rewritten.
 
 ### Engine testing
