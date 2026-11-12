@@ -11,7 +11,7 @@ The keys will be available as long as an unlock technology has been researched. 
 
 If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach. With Space Age enabled, this summons only the vehicle claimed on your current planet.
 
-**A locked vehicle remains usable by its owner.** You can enter either seat, drive, and open its inventory without unlocking it, and locking while seated keeps you inside. Other players are ejected from locked vehicles and cannot open their inventory window. The player who locked a vehicle retains access even after claiming a replacement. Locked vehicles must still be unlocked before anyone can mine them.
+**A locked vehicle remains usable by its owner.** You can enter either seat, drive, and open its inventory without unlocking it, and locking while seated keeps you inside. Other players can ride in passenger seats, even when you are not inside, but cannot drive the vehicle or open its inventory window. If a non-owner enters the driver seat, they are moved to an available passenger seat or ejected if it is occupied. Switching seats cannot bypass the driver lock. The player who locked a vehicle retains access even after claiming a replacement. Locked vehicles must still be unlocked before anyone can mine them.
 
 This mod supports vehicle grids and everything else a vehicle might contain. Without Space Age, the single globally claimed vehicle can also be summoned to another surface. Other players riding in the vehicle travel with it unless they have chosen to stay on the original surface through their per-player runtime setting.
 

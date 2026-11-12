@@ -32,7 +32,7 @@ local used_key = {}
 --                                 VEHICLE FUNCTIONS                              --
 ------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------
--- Vehicle has been locked. Keep its owner and eject other occupants!
+-- Vehicle has been locked. Enforce driver access while retaining passengers!
 local function eject_from(owner, vehicle)
 GCKI.entered_function({owner, vehicle})
 

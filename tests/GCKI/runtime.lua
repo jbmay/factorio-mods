@@ -266,7 +266,7 @@ function cases.lock_owner_can_enter_drive_and_open_inventory_without_unlocking()
   GCKI_events.on_gui_opened{player_index = 1, entity = car}
   assert(player.opened == car and mod.GCKI_vehicles[11].locker == 1)
 end
-function cases.lock_rejects_other_driver_or_passenger_without_ejecting_owner()
+function cases.lock_allows_other_passengers_but_rejects_other_drivers()
   local car = vehicle(11, nauvis); claim(car)
   GCKI_events.used_key.toggle_lock(player, car)
   for _, role in ipairs({'driver', 'passenger'}) do
@@ -276,7 +276,11 @@ function cases.lock_rejects_other_driver_or_passenger_without_ejecting_owner()
     mod.player_data[2].last_action_tick = game.tick
     mod.player_data[2].skip_state_change = 2
     GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
-    assert(not car.seats[role] and not other_player.vehicle)
+    if role == 'driver' then
+      assert(not car.seats.driver and not other_player.vehicle)
+    else
+      assert(car.seats.passenger == other_player and other_player.vehicle == car)
+    end
     assert(player.vehicle == car and mod.GCKI_vehicles[11].locker == 1)
   end
 end
@@ -285,8 +289,29 @@ function cases.locking_occupied_vehicle_keeps_owner_and_closes_other_inventory()
   car.set_driver(player); car.set_passenger(other_player)
   player.opened = car; other_player.opened = car
   GCKI_events.used_key.toggle_lock(player, car)
-  assert(car.seats.driver == player and not car.seats.passenger)
+  assert(car.seats.driver == player and car.seats.passenger == other_player)
   assert(player.opened == car and not other_player.opened)
+end
+function cases.lock_redirects_other_driver_to_an_available_passenger_seat()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  car.set_driver(other_player)
+  GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+  assert(not car.seats.driver and car.seats.passenger == other_player)
+  assert(other_player.vehicle == car and mod.GCKI_vehicles[11].locker == 1)
+end
+function cases.lock_allows_unattended_passenger_but_rejects_switching_to_driver()
+  local car = vehicle(11, nauvis); claim(car)
+  GCKI_events.used_key.toggle_lock(player, car)
+  car.set_passenger(other_player)
+  GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+  assert(car.seats.passenger == other_player and other_player.vehicle == car)
+  car.set_passenger(nil); car.set_driver(other_player)
+  mod.player_data[2].last_action_tick = game.tick
+  mod.player_data[2].skip_state_change = 2
+  GCKI_events.on_player_driving_changed_state{player_index = 2, entity = car, tick = game.tick}
+  assert(not car.seats.driver and car.seats.passenger == other_player and other_player.vehicle == car)
+  assert(mod.GCKI_vehicles[11].locker == 1 and not car.minable_flag)
 end
 function cases.lock_rejects_other_inventory_but_unlock_restores_public_access()
   local car = vehicle(11, nauvis); claim(car)

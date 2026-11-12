@@ -40,6 +40,9 @@ The maintained fork targets Factorio **2.1.24** or newer within the 2.1 series
 and requires **Pi-C_lib >= 2.1.0**. Vehicle locks enforce entry and inventory-window
 permissions through events and keep locked vehicles unminable. Owners can enter
 either seat, drive, and open the vehicle interface while the lock stays active.
+Other players may ride as passengers. Entering or switching to the driver seat
+moves them to an available passenger seat, or ejects them if it is occupied;
+the vehicle inventory window remains restricted to its owner or lock holder.
 The lock holder retains access after claiming another vehicle. On upgrade,
 existing locks are preserved and the old disabling flags are removed.
 `ci.json` pins the engine and dependency used for smoke tests;

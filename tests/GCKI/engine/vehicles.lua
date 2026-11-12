@@ -254,7 +254,7 @@ return function(context)
         assert(player.vehicle == car); assert_locked(player, car)
         car.set_driver(nil)
       end)
-      case('another lock holder blocks entry and inventory even during input cooldown', function()
+      case('locked driver seat and inventory reject non-owners while passenger seats remain available', function()
         local car = state.cars[#state.cars].entity
         local data = mod.GCKI_vehicles[car.unit_number]
         local owner, locker = data.owner, data.locker
@@ -267,11 +267,21 @@ return function(context)
           mod.player_data[player.index].last_action_tick = game.tick
           mod.player_data[player.index].skip_state_change = 2
           GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
-          assert(not player.vehicle, 'unauthorized player remained in ' .. role .. ' seat')
+          if role == 'driver' then
+            assert(not car.get_driver() and player.vehicle == car, 'driver was not redirected to a passenger seat')
+          else
+            assert(player.vehicle == car, 'locked vehicle rejected a passenger')
+          end
+          car.set_driver(nil); car.set_passenger(nil)
         end
+        car.set_passenger(player)
         player.opened = car
         GCKI_events.on_gui_opened{player_index = player.index, entity = car}
-        assert(not player.opened, 'unauthorized inventory stayed open')
+        assert(not player.opened, 'unauthorized passenger inventory stayed open')
+        car.set_passenger(nil); car.set_driver(player)
+        GCKI_events.on_player_driving_changed_state{player_index = player.index, entity = car, tick = game.tick}
+        assert(not car.get_driver() and player.vehicle == car, 'passenger bypassed the driver lock by switching seats')
+        car.set_passenger(nil)
         data.owner, data.locker = owner, locker
         mod.player_data[player.index].skip_state_change = nil
       end)

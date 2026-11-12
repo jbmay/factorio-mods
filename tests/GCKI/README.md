@@ -9,7 +9,7 @@ the Lua regressions, syntax checks and packaging without engine downloads.
 | Base game | One global claimed vehicle, lock/unlock, replacing a claim without unlocking the old car, local summoning, and summoning across non-planet surfaces. |
 | Space Age | Separate claims on Nauvis, Vulcanus, Fulgora, Gleba and Aquilo; independent locking, unlocking and summoning; no cross-planet fallback without a local claim; replacement on one planet preserves the others. |
 | Platform guards | The shortcut, keyboard input and existing key tool cannot summon onto a platform. Returning to the character restores shortcut availability. |
-| Owner access to locked vehicles | The lock holder can enter either seat, drive and open the vehicle interface while locked. Locking while seated retains the owner; other players are rejected from seats and inventory windows even during cooldowns. Replacing a claim preserves the original lock holder's access. Mining still requires unlocking. |
+| Owner access to locked vehicles | The lock holder can enter either seat, drive and open the vehicle interface while locked. Locking while seated retains the owner; other players may ride as passengers but are rejected from the driver seat and inventory windows even during cooldowns. Seat switching cannot bypass the driver lock. Replacing a claim preserves the original lock holder's access. Mining still requires unlocking. |
 | Persistence | Both engine suites run Factorio's `game.reload_mods()` and verify the stored vehicle references, unit numbers, surfaces, positions, owners and lockers. Claimed cars remain summonable after reloading. |
 
 The Python tests in `tools/tests/test_gcki_runtime.py` group the fast Lua cases
@@ -21,8 +21,9 @@ The engine suites also restore old disabling lock flags, run the
 production configuration-change handler, and verify owner access is restored
 without losing the locks. Native tests provide one real player, so unauthorized
 entry is exercised using a different lock-holder ID. The Lua tests additionally
-check two players in opposite seats to ensure rejecting a passenger never ejects
-the legitimate driver (and vice versa).
+check two players in opposite seats, passengers riding without the owner present,
+locking while a passenger is already seated, redirection to an empty passenger
+seat, and passenger-to-driver swaps.
 
 The engine fixture in `engine/vehicles.lua` uses real players, cars and planet
 surfaces and calls the production key handlers. Each scripted click resets the

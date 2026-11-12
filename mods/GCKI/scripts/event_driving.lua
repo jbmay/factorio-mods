@@ -201,7 +201,7 @@ local function no_or_other_owner(data)
 
   GCKI.writeDebug("This %s belongs to %s!",
                   {GCKI.loc_name(vehicle), owner and owner.name or "nobody"}, "line")
-  -- If vehicle is locked, only its owner or locker may enter it!
+  -- If vehicle is locked, reserve the driver seat for its owner or locker!
   if locker then
     eject_from_locked(data)
 

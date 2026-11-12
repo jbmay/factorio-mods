@@ -80,15 +80,22 @@ common_vehicle.can_access_vehicle = function(vehicle, player)
          (player.index == data.locker or player.index == data.owner) or false
 end
 
--- Never clear both seats indiscriminately: a rejected passenger must not eject
--- the legitimate driver. Run this before input throttling and replacement skips.
+-- A lock reserves the driver seat; other players may ride as passengers.
+-- Run this before input throttling and replacement skips, including seat swaps.
 common_vehicle.enforce_vehicle_lock = function(vehicle)
   local data = vehicle and vehicle.valid and mod.GCKI_vehicles[vehicle.unit_number]
   if not (data and data.locker) then return end
-  for role, occupant in pairs(common_vehicle.get_occupants(vehicle) or {}) do
-    if occupant.is_player and not common_vehicle.can_access_vehicle(vehicle, occupant.entity) then
-      vehicle["set_" .. role](nil)
-      GCKI.output(occupant.entity, {"GCKI-messages.vehicle-access-denied", GCKI.loc_name(vehicle)})
+  local occupants = common_vehicle.get_occupants(vehicle) or {}
+  for role, occupant in pairs(occupants) do
+    if role == "driver" and occupant.is_player and
+        not common_vehicle.can_access_vehicle(vehicle, occupant.entity) then
+      vehicle.set_driver(nil)
+      if not occupants.passenger then
+        vehicle.set_passenger(occupant.entity)
+        GCKI.output(occupant.entity, {"GCKI-messages.vehicle-passenger-only", GCKI.loc_name(vehicle)})
+      else
+        GCKI.output(occupant.entity, {"GCKI-messages.vehicle-access-denied", GCKI.loc_name(vehicle)})
+      end
     end
   end
   -- Also close inventories that were already open when the lock was set.
