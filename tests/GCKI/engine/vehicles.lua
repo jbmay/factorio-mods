@@ -185,6 +185,7 @@ return function(context)
       player.set_controller{type = defines.controllers.remote, surface = platform.surface, position = {0, 0}}
       GCKI_events.on_player_changed_surface{player_index = player.index}
       assert(not player.is_shortcut_available(GCKI.shortcut_name) and not player.cursor_stack.valid_for_read)
+      assert(mod_gui.get_button_flow(player).GCKI_key_status.tooltip[1] == 'GCKI-messages.keys-on-platform')
       GCKI_events.on_lua_shortcut{player_index = player.index, prototype_name = GCKI.shortcut_name}
       GCKI_custom_input.spawn_carkey{player_index = player.index}
       click(player, {x = 0, y = 4})
@@ -232,7 +233,116 @@ return function(context)
       GCKI_player.init_player(player)
       local state = {mode = context.mode, player = player.index, cars = {}}
       mod.ci_vehicle_test = state
+      local nauvis = game.surfaces.nauvis
+      prepare_surface(nauvis); move(player, nauvis)
+      case('distant claiming and locking work in character and remote views; summons stay near the character', function()
+        local car = spawn(player, nauvis, {11, 11})
+        local character = player.character
+        for _, remote_view in ipairs({false, true}) do
+          if remote_view then
+            player.set_controller{type = defines.controllers.remote, surface = nauvis, position = {10, 10}}
+          end
+          assert(not GCKI_player.is_in_reach(player, car.position))
+          click(player, car.position); assert_claim(player, car)
+          click(player, car.position); assert_locked(player, car)
+          click(player, car.position); assert(not GCKI_vehicle.get_locker(car))
+          click(player, {x = 10, y = -10})
+          assert(car.position.x == 11 and car.position.y == 11, 'out-of-reach summon moved the car')
+          click(player, {x = 0, y = 4})
+          assert(car.position.x == 0 and car.position.y == 4, 'nearby summon failed')
+          assert(car.teleport({11, 11}))
+          GCKI_vehicle.remove_vehicle_owner(car, player, {skip_event_check = true})
+          GCKI_vehicle.unlock_vehicle(car)
+        end
+        player.set_controller{type = defines.controllers.character, character = character}
+        car.destroy()
+      end)
+      case('riding in a claimed car cannot extend summon range by moving the remote camera', function()
+        local car = spawn(player, nauvis)
+        click(player, car.position); assert_claim(player, car)
+        car.set_driver(player)
+        local character = player.character
+        local x, y = player.physical_position.x, player.physical_position.y
+        player.set_controller{type = defines.controllers.remote, surface = nauvis, position = {100, 100}}
+        click(player, {x = 100, y = 104})
+        assert(car.position.x == 3 and car.position.y == 0)
+        assert(player.physical_position.x == x and player.physical_position.y == y,
+               'remote-view summon teleported the seated character')
+        click(player, {x = 0, y = 4})
+        assert(car.position.x == 0 and car.position.y == 4)
+        player.set_controller{type = defines.controllers.character, character = character}
+        car.set_driver(nil); car.destroy(); move(player, nauvis)
+      end)
+      case('disabled shortcut exposes the viewed-surface reason and clears it on return', function()
+        local character = player.character
+        local other = game.create_surface('gcki-remote-key-check')
+        player.set_controller{type = defines.controllers.remote, surface = other, position = {0, 0}}
+        GCKI_events.on_player_changed_surface{player_index = player.index}
+        local flow = mod_gui.get_button_flow(player)
+        assert(not player.is_shortcut_available(GCKI.shortcut_name))
+        assert(flow.GCKI_key_status and flow.GCKI_key_status.tooltip[1] == 'GCKI-messages.keys-in-remote-view')
+        assert(player.teleport(character.position, character.surface))
+        player.set_controller{type = defines.controllers.character, character = character}
+        GCKI_events.on_player_changed_surface{player_index = player.index}
+        assert(player.is_shortcut_available(GCKI.shortcut_name) and not flow.GCKI_key_status)
+        game.delete_surface(other)
+      end)
+      case('selected Spidertron body claims the spider instead of summoning the previous car', function()
+        local car = spawn(player, nauvis)
+        click(player, car.position); assert_claim(player, car)
+        local spider = assert(nauvis.create_entity{name = 'spidertron', position = {7, 7}, force = player.force})
+        local position = {x = 7, y = 2}
+        assert(not GCKI_events.used_key.find_vehicle(nauvis, position), 'fixture must miss the ground footprint')
+        mod.player_data[player.index].last_action_tick = nil
+        GCKI_events.on_player_selected_area{
+          player_index = player.index, item = GCKI.carkey_name, surface = nauvis,
+          area = {left_top = position, right_bottom = position}, entities = {spider},
+        }
+        assert_claim(player, spider)
+        assert(car.position.x == 3 and car.position.y == 0, 'previous car was summoned beneath the spider')
+        assert(spider.position.x == 7 and spider.position.y == 7)
+        car.destroy(); spider.destroy()
+      end)
       if context.mode == 'space-age' then space_age(player, state) else base_game(player, state) end
+      case('Your vehicles groups planets alphabetically and preserves row controls when reordering', function()
+        local expected = context.mode == 'space-age' and
+          {'aquilo', 'fulgora', 'gleba', 'nauvis', 'nauvis', 'vulcanus'} or
+          {'nauvis', 'gcki-test-other-surface'}
+        -- Discard vehicles destroyed by earlier scripted cases before inspecting the GUI.
+        GCKI_events.on_configuration_changed{name = 'on_configuration_changed'}
+        local names = GCKI_gui_names.player_vehicles.table_columns
+        GCKI_gui_player_vehicles.init_gui(player)
+        local tab = GCKI_gui_player_vehicles.get_gui_table(player)
+        local function check_order()
+          local children = tab.children
+          assert(#children == (#expected + 1) * 8, 'unexpected vehicle cell count: ' .. #children)
+          local previous
+          for row, surface in ipairs(expected) do
+            local label = children[row * 8 + 4]
+            assert(label.caption == surface, 'unexpected planet/surface at row ' .. row)
+            local id = tonumber(label.name:sub(#names.surface + 1))
+            if row > 1 and expected[row - 1] == surface then
+              assert(previous < id, 'same-surface vehicles must have stable ID order')
+            end
+            previous = id
+          end
+        end
+        check_order()
+        local car = state.cars[1].entity
+        local map_cell = tab[names.map_view .. car.unit_number]
+        local name_cell = tab[names.id .. car.unit_number]
+        local old_text = name_cell.text
+        map_cell.state, name_cell.text = true, 'Unsubmitted vehicle name'
+        -- Scramble the first/last rows to exercise sorting of existing controls.
+        for column = 1, 8 do tab.swap_children(8 + column, #expected * 8 + column) end
+        GCKI_gui_player_vehicles.add_to_gui(player, {car})
+        check_order()
+        assert(tab[names.map_view .. car.unit_number] == map_cell and map_cell.state)
+        assert(tab[names.id .. car.unit_number] == name_cell and name_cell.text == 'Unsubmitted vehicle name')
+        map_cell.state, name_cell.text = false, old_text
+        GCKI_gui_player_vehicles.init_gui(player)
+        check_order()
+      end)
       case('existing disabled locks become usable by their owner on upgrade', function()
         for _, saved in ipairs(state.cars) do
           saved.entity.disabled_by_script = true

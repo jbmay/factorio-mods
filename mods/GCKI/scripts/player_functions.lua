@@ -112,13 +112,14 @@ GCKI.show("f_data", f_data)
   local unlock_shortcut = GCKI.is_unlock_tech_researched(player.force) or false
 GCKI.show("unlock_shortcut", unlock_shortcut)
 
-  player.set_shortcut_available(GCKI.shortcut_name, unlock_shortcut and GCKI_ownership.can_use(player))
   if f_data then
     f_data.show_shortcuts = unlock_shortcut
     GCKI.writeDebug("%sabled shortcut %s!",
                     {unlock_shortcut and "En" or "Dis",
                       GCKI.enquote(GCKI.shortcut_name)})
   end
+
+  GCKI_ownership.update_shortcut(player)
 
   -- Do we need events for custom inputs?
   GCKI.writeDebugNewBlock("Check whether we need optional events for custom inputs!")
@@ -590,14 +591,17 @@ common_player.get_player_reach = function(player)
     GCKI.arg_err(player, "player_specification")
   end
 
-  return mod.settings.long_reach and
-          player.reach_distance or
-          player.reach_distance - player.character_reach_distance_bonus
+  -- Remote controllers have effectively unlimited reach. Always use the attached
+  -- character's reach, preserving the existing long-reach setting.
+  local character = player.character
+  if not (character and character.valid) then return 0 end
+  return mod.settings.long_reach and character.reach_distance or
+          character.reach_distance - character.character_reach_distance_bonus
 end
 
 
 ------------------------------------------------------------------------------------
--- Is the given position within player.reach_distance from player.position?
+-- Is the destination within reach of the physical character, even in remote view?
 common_player.is_in_reach = function(player, position)
   GCKI.entered_function({player, position})
 
@@ -607,8 +611,8 @@ common_player.is_in_reach = function(player, position)
   end
 
   local max_distance = common_player.get_player_reach(player)
-  --~ return not common.distance_exceeds(player.position, position, max_distance)
-  return not GCKI_calc.distance_exceeds(player.position, position, max_distance)
+  if not (player.character and player.character.valid) then return false end
+  return not GCKI_calc.distance_exceeds(player.physical_position, position, max_distance)
 end
 
 

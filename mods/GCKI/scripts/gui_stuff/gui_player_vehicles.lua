@@ -31,6 +31,38 @@ local columns = {
 }
 
 
+-- Move existing cells rather than rebuilding them, preserving text edits and the
+-- map/camera checkboxes while grouping every displayed vehicle by its planet.
+local function sort_vehicle_rows(vehicle_list, vehicles)
+  local rows = {}
+  for _, vehicle in pairs(vehicles or {}) do
+    if vehicle.valid and vehicle_list[gui_names.table_columns.icon .. vehicle.unit_number] then
+      local surface = vehicle.surface
+      rows[#rows + 1] = {
+        id = vehicle.unit_number,
+        kind = surface.planet and 1 or 2,
+        group = surface.planet and surface.planet.name or surface.name,
+        surface = surface.name,
+      }
+    end
+  end
+  table.sort(rows, function(a, b)
+    if a.kind ~= b.kind then return a.kind < b.kind end
+    if a.group ~= b.group then return a.group < b.group end
+    if a.surface ~= b.surface then return a.surface < b.surface end
+    return a.id < b.id
+  end)
+  for row, vehicle in ipairs(rows) do
+    for column, name in ipairs(columns) do
+      local cell = vehicle_list[gui_names.table_columns[name] .. vehicle.id]
+      local destination = row * #columns + column -- leave the header row in place
+      local current = cell.get_index_in_parent()
+      if current ~= destination then vehicle_list.swap_children(current, destination) end
+    end
+  end
+end
+
+
 local function create_gui(player)
   GCKI.entered_function({player})
 
@@ -831,6 +863,8 @@ GCKI.show("vehicle", GCKI.argprint(vehicle))
     end
   end
 
+  sort_vehicle_rows(vehicle_list, p_data.locked_or_owned)
+
   ------------------------------------------------------------------------------------
   --         If there are any vehicles on the GUI, unhide the toggle button!        --
   ------------------------------------------------------------------------------------
@@ -1081,6 +1115,8 @@ GCKI.show("custom_name", custom_name)
     GCKI_gui.set_checkbox(element, show_on_camera, enabled)
   end
 
+  sort_vehicle_rows(vehicle_list, p_data.locked_or_owned)
+
   GCKI.entered_function("leave")
 end
 
@@ -1199,6 +1235,7 @@ player_vehicles.swap_vehicle_on_gui = function(player, old_id, new_vehicle)
     -- As the old vehicle will be destroyed, it's entry will automagically disappear!
     p_data.locked_or_owned[new_id] = new_vehicle
     GCKI.writeDebug("p_data.locked_or_owned[%s]: %s", {new_id, GCKI.argprint(new_vehicle)})
+    sort_vehicle_rows(tab, p_data.locked_or_owned)
   end
 
 

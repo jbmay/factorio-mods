@@ -83,7 +83,12 @@ GCKI_events.helper.check_optional_events = noop
 GCKI_events.driving = dofile('mods/GCKI/scripts/event_driving.lua')
 GCKI_events.used_key = dofile('mods/GCKI/scripts/event_key_shortcut.lua')
 GCKI_player = dofile('mods/GCKI/scripts/player_functions.lua')
-GCKI_player.is_in_reach = function() return true end
+GCKI_calc = dofile('mods/GCKI/libs/math_functions.lua')
+mod.settings = {long_reach = false}
+player.position = {x = 0, y = 0}
+player.physical_position = {x = 0, y = 0}
+player.character.reach_distance = 10
+player.character.character_reach_distance_bonus = 0
 GCKI_custom_input = dofile('mods/GCKI/scripts/custom_inputs.lua')
 GCKI_commands = dofile('mods/GCKI/scripts/commands.lua')
 
@@ -117,6 +122,66 @@ local function claim(v)
                                          keep_owner_on_gui = true, dont_tell_CustomColor = true})
 end
 local cases = {}
+function cases.summon_reach_uses_character_in_remote_view()
+  player.position = {x = 1000, y = 1000}
+  player.reach_distance = 4294967295
+  assert(GCKI_player.get_player_reach(player) == 10)
+  assert(not GCKI_player.is_in_reach(player, {x = 1000, y = 1000}))
+  assert(GCKI_player.is_in_reach(player, {x = 6, y = 8}))
+  player.character = nil
+  assert(not GCKI_player.is_in_reach(player, {x = 0, y = 0}))
+end
+function cases.character_reach_preserves_long_reach_setting()
+  player.character.reach_distance = 30
+  player.character.character_reach_distance_bonus = 20
+  assert(GCKI_player.get_player_reach(player) == 10)
+  assert(not GCKI_player.is_in_reach(player, {x = 11, y = 0}))
+  mod.settings.long_reach = true
+  assert(GCKI_player.get_player_reach(player) == 30)
+  assert(GCKI_player.is_in_reach(player, {x = 11, y = 0}))
+end
+function cases.claim_lock_unlock_ignore_distance()
+  local car = vehicle(11, nauvis)
+  car.position = {x = 1000, y = 1000}
+  for _, position in ipairs({{x = 0, y = 0}, {x = 1000, y = 1000}}) do
+    player.position = position
+    GCKI_events.used_key.claim_or_toggle_lock(player, car)
+    assert(mod.GCKI_vehicles[11].owner == 1)
+    GCKI_events.used_key.claim_or_toggle_lock(player, car)
+    assert(mod.GCKI_vehicles[11].locker == 1)
+    GCKI_events.used_key.claim_or_toggle_lock(player, car)
+    assert(not mod.GCKI_vehicles[11].locker)
+    GCKI_vehicle.remove_vehicle_owner(car, player, {skip_event_check = true})
+  end
+end
+function cases.visual_spidertron_selection_precedes_ground_search()
+  mod.vehicle_prototypes = {map = {car = {car = true}, ['spider-vehicle'] = {spidertron = true}}}
+  GCKI.ascertain_surface = function(s) return s end
+  local spider, ground = vehicle(11, nauvis), vehicle(22, nauvis)
+  spider.name, spider.type = 'spidertron', 'spider-vehicle'
+  nauvis.find_entities_filtered = function() return {ground} end
+  local pos = {x = 0, y = -4}
+  local find = GCKI_events.used_key.find_vehicle
+  assert(find(nauvis, pos, {selected = spider, entities = {ground}}) == spider)
+  assert(find(nauvis, pos, {entities = {spider}}) == spider)
+  spider.valid = false
+  assert(find(nauvis, pos, {selected = spider, entities = {spider}}) == ground)
+  spider.valid, spider.surface = true, vulcanus
+  assert(find(nauvis, pos, {selected = spider, entities = {spider}}) == ground)
+end
+function cases.shortcut_reports_remote_surface_and_platform_restrictions()
+  local status
+  GCKI_gui.update_key_status = function(_, reason) status = reason end
+  player.surface = vulcanus
+  GCKI_ownership.update_shortcut(player)
+  assert(not player.available and status == 'keys-in-remote-view')
+  player.surface = platform
+  GCKI_ownership.update_shortcut(player)
+  assert(not player.available and status == 'keys-on-platform')
+  player.surface = nauvis
+  GCKI_ownership.update_shortcut(player)
+  assert(player.available and not status)
+end
 function cases.claims_are_independent_per_planet()
   local a, b = vehicle(11, nauvis), vehicle(22, vulcanus)
   claim(a); claim(b)
