@@ -1,4 +1,4 @@
-FROM python:3.13-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 # Python's standard library handles HTTP and archive operations. Lua is used for
 # syntax checks; the C++ runtime supports the downloaded Linux Factorio binary.
