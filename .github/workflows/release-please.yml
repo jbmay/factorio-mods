@@ -13,24 +13,22 @@ concurrency:
 
 jobs:
   release:
+    environment: trusted
     runs-on: ubuntu-latest
     permissions:
       contents: write
       issues: write
       pull-requests: write
-    outputs:
-      releases: ${{ steps.matrix.outputs.releases }}
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - uses: ./.github/actions/setup-maru
-      - name: Require bot credentials that trigger PR checks
+      - name: Require bot credentials that trigger PR and tag workflows
         env:
           TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
         run: |
           if [ -z "$TOKEN" ]; then
-            echo 'Configure RELEASE_PLEASE_TOKEN so release PRs trigger CI.' >&2
+            echo 'Configure RELEASE_PLEASE_TOKEN so release PRs and version tags trigger CI.' >&2
             exit 1
           fi
       - uses: googleapis/release-please-action@v4
@@ -39,25 +37,3 @@ jobs:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
-      - name: Select released mods
-        id: matrix
-        env:
-          RELEASE_OUTPUTS: ${{ toJSON(steps.release.outputs) }}
-        run: |
-          maru run release-matrix
-          echo "releases=$(cat dist/releases.json)" >> "$GITHUB_OUTPUT"
-
-  publish:
-    needs: release
-    if: needs.release.outputs.releases != '[]'
-    strategy:
-      fail-fast: false
-      matrix:
-        include: ${{ fromJSON(needs.release.outputs.releases) }}
-    permissions:
-      contents: write
-    uses: ./.github/workflows/publish.yml
-    with:
-      mod: ${{ matrix.mod }}
-      tag: ${{ matrix.tag }}
-    secrets: inherit

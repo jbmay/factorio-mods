@@ -12,7 +12,7 @@ packaging checks; `maru run test --set MOD=GCKI` includes engine tests. Omitting
 `MOD` selects all mods. [Local container tests](../docs/development.md#local-container-tests)
 describes credentials, mounts, and retained saves/logs.
 
-The `list-mods`, `release-matrix`, and `publish` tasks also run their corresponding
+The `list-mods`, `release-matrix`, `tag-matrix`, and `publish` tasks also run their corresponding
 CLI commands in that image. Discovery and release selection write JSON under
 `dist/` so workflow outputs do not mix with Maru build/progress messages. CI's
 Maru installation is pinned in `.maru-version`.
@@ -31,6 +31,7 @@ name; release tags use the component in `release-please-config.json`.
 | `package MOD` | Validates configuration and builds the release ZIP. | Writes `dist/<name>_<version>.zip` and prints its path. |
 | `engine MOD --work DIRECTORY` | Installs an isolated test environment and runs the real Factorio engine. | Downloads files, builds a package in `dist/`, and retains test files and engine logs under the work directory. |
 | `release-matrix` | Converts Release Please outputs into per-mod publishing jobs. | Reads `RELEASE_OUTPUTS` and prints a JSON array of objects containing `mod` and `tag`. |
+| `tag-matrix --tag TAG` | Selects the registered mod for a version tag and checks its version. | Prints the single-entry publishing matrix; rejects unknown components and mismatched versions. |
 | `publish MOD --archive ZIP --tag TAG` | Verifies and uploads a release package. | Creates a portal listing or adds a release to an existing listing. |
 
 Examples of local discovery, validation, and packaging:
@@ -44,7 +45,7 @@ python tools/mod_ci.py package GCKI
 ### Configuration validation
 
 `check`, `package`, `engine`, `publish`, and each selected entry in
-`release-matrix` use `validate(mod)`. It checks:
+`release-matrix` and `tag-matrix` use `validate(mod)`. It checks:
 
 - Required `info.json` fields, portal name syntax, version syntax, and Factorio's
   numeric version limits.
@@ -130,6 +131,11 @@ configuration, pass metadata validation, and have a tag matching
 The CLI obtains `outputs` from the JSON object in `RELEASE_OUTPUTS`. With no
 released paths, the result is an empty array.
 
+`tag_matrix(tag)` finds the registered release component in a tag such as
+`gcki-continued/v2.0.2`, then uses `release_matrix()` to validate the selected
+mod and exact version. Tag-triggered CI calls this through the `tag-matrix` Maru
+task, which writes `dist/releases.json`. It requires no Factorio credentials.
+
 ### Portal publication
 
 `publish(mod, archive, tag)` requires `FACTORIO_API_KEY`, a matching release tag,
@@ -149,9 +155,11 @@ the publisher never replaces an existing portal release. The API key is sent
 only to the upload initialization endpoint, and the returned upload URL must
 use HTTPS.
 
-The function does not run engine tests, check whether the GitHub Release exists,
-or attach GitHub assets itself. Those steps belong to `publish.yml`, which runs
-engine tests before invoking this command. The CLI's `publish` command performs
+The function does not run engine tests, ensure a GitHub Release exists,
+or attach GitHub assets itself. Those steps belong to `publish.yml`, whose
+tag-only authenticated jobs run in the `trusted` environment. Main pushes run
+authenticated engine tests without publishing, and all PRs run credential-free
+checks. The CLI's `publish` command performs
 a real upload when its checks pass.
 
 ## Supporting functions

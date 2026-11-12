@@ -116,6 +116,15 @@ class ModCITests(unittest.TestCase):
             ci.release_matrix(outputs)
         self.assertEqual(ci.release_matrix({}), [])
 
+    def test_tag_matrix_selects_only_registered_mods_with_matching_versions(self):
+        self.assertEqual(ci.tag_matrix("Demo/v1.0.0"), [{"mod": "Demo", "tag": "Demo/v1.0.0"}])
+        for tag in ("Other/v1.0.0", "Demo-v1.0.0", "main", "refs/tags/Demo/v1.0.0"):
+            with self.assertRaisesRegex(ValueError, "exactly one registered mod"):
+                ci.tag_matrix(tag)
+        for tag in ("Demo/v1.0.1", "Demo/v1.0.0-extra"):
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                ci.tag_matrix(tag)
+
     def test_unsafe_selectors_and_symlinks_are_rejected(self):
         for name in ("../Demo", "Demo/foo", "$(whoami)"):
             with self.assertRaises(ValueError):

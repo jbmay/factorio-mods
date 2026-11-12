@@ -353,6 +353,17 @@ def release_matrix(outputs):
     return result
 
 
+def tag_matrix(tag):
+    """Select a registered mod from a component/version tag and validate its version."""
+    packages = read_json(ROOT / "release-please-config.json")["packages"]
+    paths = [path for path, config in packages.items()
+             if tag.startswith(f"{config['component']}/v")]
+    if len(paths) != 1:
+        raise ValueError("Tag must select exactly one registered mod: <component>/v<version>")
+    path = paths[0]
+    return release_matrix({"paths_released": json.dumps(paths), f"{path}--tag_name": tag})
+
+
 def publish(mod, archive, tag):
     path, info, _ = validate(mod)
     component = read_json(ROOT / "release-please-config.json")["packages"][f"mods/{mod}"]["component"]
@@ -407,7 +418,7 @@ def publish(mod, archive, tag):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=["list", "check", "package", "engine", "release-matrix", "publish"])
+    parser.add_argument("command", choices=["list", "check", "package", "engine", "release-matrix", "tag-matrix", "publish"])
     parser.add_argument("mod", nargs="?")
     parser.add_argument("--work")
     parser.add_argument("--archive")
@@ -419,6 +430,10 @@ def main():
         print(json.dumps([p.parent.name for p in sorted((ROOT / "mods").glob("*/info.json"))]))
     elif args.command == "release-matrix":
         print(json.dumps(release_matrix(json.loads(os.environ["RELEASE_OUTPUTS"]))))
+    elif args.command == "tag-matrix":
+        if not args.tag:
+            parser.error("tag-matrix requires --tag")
+        print(json.dumps(tag_matrix(args.tag)))
     elif args.command == "check":
         with report.case(f"{args.mod}: metadata and release version consistency"):
             path, _, _ = validate(args.mod)

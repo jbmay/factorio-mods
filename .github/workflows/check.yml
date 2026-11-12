@@ -28,7 +28,8 @@ jobs:
           maru run list-mods
           echo "mods=$(cat dist/mods.json)" >> "$GITHUB_OUTPUT"
 
-  mods:
+  pr-mods:
+    if: github.event_name == 'pull_request'
     needs: discover
     strategy:
       fail-fast: false
@@ -37,19 +38,37 @@ jobs:
     uses: ./.github/workflows/test-mod.yml
     with:
       mod: ${{ matrix.mod }}
-      ref: ${{ github.sha }}
-      # Fork PRs run syntax/package checks without receiving download credentials.
-      engine: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-    secrets: inherit
+      engine: false
+
+  main-mods:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: discover
+    strategy:
+      fail-fast: false
+      matrix:
+        mod: ${{ fromJSON(needs.discover.outputs.mods) }}
+    uses: ./.github/workflows/test-mod.yml
+    with:
+      mod: ${{ matrix.mod }}
+      engine: true
+    secrets:
+      FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
+      FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
 
   checks:
     name: All mod checks
     if: always()
-    needs: [discover, mods]
+    needs: [discover, pr-mods, main-mods]
     runs-on: ubuntu-latest
     steps:
       - name: Require successful checks
         env:
           DISCOVER: ${{ needs.discover.result }}
-          MODS: ${{ needs.mods.result }}
-        run: test "$DISCOVER" = success && test "$MODS" = success
+          PR_MODS: ${{ needs.pr-mods.result }}
+          MAIN_MODS: ${{ needs.main-mods.result }}
+        run: |
+          test "$DISCOVER" = success
+          case "$PR_MODS:$MAIN_MODS" in
+            success:skipped|skipped:success) ;;
+            *) exit 1 ;;
+          esac

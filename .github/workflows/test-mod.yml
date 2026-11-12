@@ -6,11 +6,8 @@ on:
       mod:
         required: true
         type: string
-      ref:
-        required: true
-        type: string
       engine:
-        default: true
+        default: false
         type: boolean
     secrets:
       FACTORIO_USERNAME:
@@ -22,38 +19,58 @@ permissions:
   contents: read
 
 jobs:
-  test:
+  static:
+    if: ${{ !inputs.engine }}
     name: Test ${{ inputs.mod }}
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: ${{ inputs.ref }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-maru
       - name: Run credential-free checks with Maru
-        if: ${{ !inputs.engine }}
         env:
           MOD: ${{ inputs.mod }}
         run: maru run test-static --set "MOD=$MOD"
+      - name: Explain PR coverage
+        run: echo 'PR checks cover automation unit tests, metadata, Lua syntax and packaging. Authenticated engine tests run in trusted on main and version tags.' >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-${{ inputs.mod }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  authenticated:
+    if: >-
+      inputs.engine &&
+      ((github.event_name == 'push' &&
+        (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/'))) ||
+       (github.event_name == 'workflow_dispatch' && startsWith(github.ref, 'refs/tags/')))
+    name: Test ${{ inputs.mod }}
+    runs-on: ubuntu-latest
+    environment: trusted
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-maru
       - name: Run full checks with Maru
-        if: inputs.engine
         env:
           MOD: ${{ inputs.mod }}
           FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
           FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
         run: maru run test --set "MOD=$MOD"
-      - name: Explain fork PR coverage
-        if: ${{ !inputs.engine }}
-        run: echo 'Fork PR checks cover metadata, Lua syntax and packaging. Engine tests run after merge and before publishing.' >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         with:
           name: package-${{ inputs.mod }}
           path: dist/*.zip
           if-no-files-found: error
       - name: Save engine diagnostics
-        if: ${{ always() && inputs.engine }}
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: logs-${{ inputs.mod }}

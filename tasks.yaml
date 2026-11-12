@@ -77,6 +77,20 @@ tasks:
             --entrypoint python \
             "${TEST_IMAGE}" tools/mod_ci.py release-matrix > dist/releases.json
 
+  - name: tag-matrix
+    description: Validate a version tag and write its selected mod to dist/releases.json
+    actions:
+      - task: build-test-image
+      - cmd: |
+          set -eu
+          : "${TAG:?Select a version tag with --set TAG=component/vVERSION}"
+          mkdir -p dist
+          docker run --rm --init --platform linux/amd64 \
+            --user "$(id -u):$(id -g)" \
+            --mount "type=bind,source=$PWD,target=/workspace,readonly" \
+            --entrypoint python \
+            "${TEST_IMAGE}" tools/mod_ci.py tag-matrix --tag "${TAG}" > dist/releases.json
+
   - name: publish
     description: Publish the tested ZIP using the same image (requires MOD, TAG, and FACTORIO_API_KEY)
     actions:

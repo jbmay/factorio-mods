@@ -1,80 +1,102 @@
-name: Publish one mod
+name: Publish tagged mod
 
 on:
-  workflow_call:
-    inputs:
-      mod:
-        required: true
-        type: string
-      tag:
-        required: true
-        type: string
-    secrets:
-      FACTORIO_USERNAME:
-        required: true
-      FACTORIO_TOKEN:
-        required: true
-      FACTORIO_API_KEY:
-        required: true
+  push:
+    tags: ['*/v*']
+  # Retry an existing version tag by dispatching this workflow with that tag as ref.
   workflow_dispatch:
-    inputs:
-      mod:
-        description: Directory name under mods/
-        required: true
-        type: string
-      tag:
-        description: Existing release tag (for example gcki-continued/v2.0.2)
-        required: true
-        type: string
 
 permissions:
   contents: read
 
-concurrency:
-  group: portal-${{ inputs.mod }}
-  cancel-in-progress: false
-
 jobs:
+  select:
+    name: Select tagged mod
+    runs-on: ubuntu-latest
+    outputs:
+      releases: ${{ steps.select.outputs.releases }}
+    steps:
+      - name: Require a tag event
+        env:
+          REF: ${{ github.ref }}
+        run: |
+          case "$REF" in
+            refs/tags/*) ;;
+            *) echo 'Publishing must run from a version tag, not a branch.' >&2; exit 1 ;;
+          esac
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: ./.github/actions/setup-maru
+      - name: Resolve and validate tagged mod
+        id: select
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          maru run tag-matrix --set "TAG=$TAG"
+          echo "releases=$(cat dist/releases.json)" >> "$GITHUB_OUTPUT"
+
   test:
+    needs: select
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.releases) }}
     uses: ./.github/workflows/test-mod.yml
     with:
-      mod: ${{ inputs.mod }}
-      ref: refs/tags/${{ inputs.tag }}
+      mod: ${{ matrix.mod }}
       engine: true
     secrets:
       FACTORIO_USERNAME: ${{ secrets.FACTORIO_USERNAME }}
       FACTORIO_TOKEN: ${{ secrets.FACTORIO_TOKEN }}
 
   publish:
-    needs: test
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: [select, test]
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON(needs.select.outputs.releases) }}
     runs-on: ubuntu-latest
+    environment: trusted
     timeout-minutes: 10
+    concurrency:
+      group: portal-${{ matrix.mod }}
+      cancel-in-progress: false
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: refs/tags/${{ inputs.tag }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - uses: ./.github/actions/setup-maru
       - uses: actions/download-artifact@v8
         with:
-          name: package-${{ inputs.mod }}
+          name: package-${{ matrix.mod }}
           path: dist
-      - name: Require an existing published GitHub Release
+      - name: Ensure a published GitHub Release exists
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ matrix.tag }}
+          MOD: ${{ matrix.mod }}
         run: |
-          test "$(gh release view "$TAG" --json isDraft --jq .isDraft)" = false
+          set -euo pipefail
+          if gh release view "$TAG" --json isDraft > "$RUNNER_TEMP/release.json"; then
+            test "$(jq -r .isDraft "$RUNNER_TEMP/release.json")" = false
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" \
+              --notes "Release of $MOD at $TAG."
+          fi
       - name: Publish tested package to the mod portal
         env:
-          MOD: ${{ inputs.mod }}
-          TAG: ${{ inputs.tag }}
+          MOD: ${{ matrix.mod }}
+          TAG: ${{ matrix.tag }}
           FACTORIO_API_KEY: ${{ secrets.FACTORIO_API_KEY }}
         run: maru run publish --set "MOD=$MOD" --set "TAG=$TAG"
       - name: Attach tested package to GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ matrix.tag }}
         run: gh release upload "$TAG" dist/*.zip --clobber

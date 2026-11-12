@@ -12,16 +12,26 @@ defined in `renovate.json`. Renovate runs through the app rather than a reposito
 workflow. Release Please runs through GitHub Actions and uses bot credentials to
 create release pull requests and GitHub Releases.
 
-The workflows expect the following repository Actions secrets. App installation,
+The workflows expect the following Actions secrets. App installation,
 repository permissions, branch protection, and secret values are managed in
 GitHub separately from the files in this repository.
 
-| Secret | Purpose |
-| --- | --- |
-| `RELEASE_PLEASE_TOKEN` | Bot PAT with Contents, Issues, and Pull requests write permissions. Its PRs trigger CI, unlike PRs created with `GITHUB_TOKEN`. |
-| `FACTORIO_USERNAME` | Factorio account username for dependency downloads. |
-| `FACTORIO_TOKEN` | Account download/service token from Factorio profile/player data, distinct from the portal API key. |
-| `FACTORIO_API_KEY` | Portal key with **Upload Mods** and **Publish Mods** permissions for subsequent releases and first-time listings. |
+| Secret | Location | Purpose |
+| --- | --- | --- |
+| `RELEASE_PLEASE_TOKEN` | `trusted` environment | Bot PAT with Contents, Issues, and Pull requests write permissions. Its PRs and tags trigger workflows, unlike resources created with `GITHUB_TOKEN`. |
+| `FACTORIO_USERNAME` | `trusted` environment | Factorio account username for dependency downloads. |
+| `FACTORIO_TOKEN` | `trusted` environment | Account download/service token from Factorio profile/player data, distinct from the portal API key. |
+| `FACTORIO_API_KEY` | `trusted` environment | Portal key with **Upload Mods** and **Publish Mods** permissions for subsequent releases and first-time listings. |
+
+The `trusted` environment permits deployments from `main` and tags. All PRs,
+including same-repository and Renovate PRs, use jobs without that environment.
+Its tag rule matches the component/version naming scheme, for example `*/v*`
+or `gcki-continued/v*`; a plain `*` does not match the slash in those tag names.
+Release Please, authenticated test, and publishing jobs declare `environment: trusted`; reusable
+workflow callers explicitly pass the two download-secret names so the called
+job can resolve the environment values. PR callers pass no Factorio secrets.
+Repository-level duplicates of these Factorio secrets would bypass the intended
+environment-only storage boundary and are unnecessary.
 
 The download account must have access to the dependency mods. Publishing rights
 apply to the new fork's listing. The publisher refuses to use the original name
@@ -31,7 +41,7 @@ recorded in `portal.json.upstream_name`.
 
 `check.yml` uses `maru run list-mods` to discover every `mods/*/info.json`, then
 calls `test-mod.yml` separately for each mod. That reusable workflow invokes
-`maru run test` for trusted runs or `maru run test-static` for fork PRs. Each
+`maru run test` on main pushes or version tags, and `maru run test-static` for every PR. Each
 selected task runs the automation unit tests and mod checks inside the same
 Docker image used locally. The workflow runs on PRs and main pushes; publishing
 also reruns the checks for each release. Checks cover metadata and
@@ -39,10 +49,16 @@ release-version consistency, Lua 5.2 syntax, deterministic packaging, and a
 pinned headless Factorio new-map test followed by loading the save and
 benchmarking 600 ticks.
 
-Fork PRs receive metadata, syntax, and packaging checks without credentials.
-Engine tests run on same-repository PRs, trusted branch runs, and every publishing
-run. Missing credentials fail engine tests. Pre-merge engine testing of a fork
-contribution takes place on a trusted repository branch after code review.
+| Event | Checks | Environment | Portal publication |
+| --- | --- | --- | --- |
+| Any PR | Unit tests, metadata, Lua syntax, packaging | None | No |
+| Push to `main` | Full tests for every mod, including engine save creation/loading | `trusted` | No |
+| Push of `<component>/v<version>` | Tag/version validation and full tests for the tagged mod | `trusted` for authenticated jobs | After tests pass |
+
+Missing credentials fail engine tests. Authenticated CI checks are performed
+after changes reach main, rather than on PR branches. The reusable test workflow
+always checks out the event's exact SHA, preventing a caller from selecting
+another branch while borrowing the event's trusted environment.
 
 The `gcki-continued` fork under `mods/GCKI` targets Factorio 2.1 and pins engine
 **2.1.24** and **Pi-C_lib 2.1.0**. The current checks cover startup, save loading,
@@ -53,8 +69,9 @@ generated automatically in the work directory.
 `ci.json.dependencies` pins all external mods used by the tests, including
 transitive requirements and optional integrations. The runner verifies portal
 checksums, dependency constraints/conflicts, and matching Factorio series. Only
-the configured dependency combination is tested. Expansion mods are not supplied
-by the free headless download; this runner supports base-game combinations.
+the configured external dependency combination and enabled bundled game content
+are exercised. The headless download includes bundled game content; additional
+external mods require explicit pins.
 
 ## Behavior and upgrade fixtures
 
@@ -84,13 +101,21 @@ touch each mod.
    `version.txt`, `info.json.version`, Markdown changelog, and manifest entry.
 2. Merging a reviewed release PR with passing checks causes Release Please to
    create a component tag such as `gcki-continued/v2.0.2` and a GitHub Release.
-3. The same workflow directly invokes `publish.yml` for each released mod.
-   Publishing does not depend on a second workflow being triggered by a bot tag.
-4. Publishing checks out the exact tag, reruns checks and engine tests, uploads
-   the tested ZIP to the portal, and attaches it to the GitHub Release.
+3. The tag push triggers `publish.yml`. Release Please does not directly call the
+   publisher, so each version has one publishing path. `RELEASE_PLEASE_TOKEN`
+   must be a PAT or equivalent bot credential that triggers tag workflows.
+4. `maru run tag-matrix` selects the registered mod by its release component and
+   verifies that the tag version matches the metadata. Unknown components and
+   mismatched versions fail before authenticated jobs run.
+5. Full tests run against the event's exact commit in `trusted`. Publishing then
+   uses `trusted` to upload the tested ZIP and attach it to the GitHub Release.
+   A manual version-tag push follows the same path; a missing GitHub Release is
+   created after tests pass.
 
-The **Publish one mod** workflow supports retries using a mod directory name and
-an existing release tag. An existing portal release is accepted only when its
+The **Publish tagged mod** workflow supports retries by dispatching it from an
+existing version tag. For example,
+`gh workflow run publish.yml --ref gcki-continued/v2.0.2` retries that tag. Dispatches from a branch are rejected
+before any authenticated job. An existing portal release is accepted only when its
 bytes match the tested package; portal releases are never replaced. A GitHub
 Release can exist even if subsequent testing or uploading fails, so its presence
 alone does not confirm portal publication. Shared-tooling changes alone do not
@@ -111,7 +136,9 @@ regex managers and datasources track:
 Factorio and portal dependencies are grouped into one compatibility PR so a new
 engine series and matching library can be proposed together. Updates never
 automerge. Dependency candidates include all portal releases; incompatible
-proposals fail engine checks and need review. Unversioned constraints and
+proposals can fail the authenticated engine checks on main or tags. PR checks
+cover static consistency and syntax, so version proposals still need review.
+Unversioned constraints and
 operators other than `>=` require manual updates. A version PR may require Lua
 API changes before it passes; metadata updates alone do not port a mod.
 
@@ -156,6 +183,7 @@ runner. Other host architectures require Docker's amd64 emulation support.
 | `default` | Runs the full `test` task. |
 | `list-mods` | Builds the image and writes the discovered directory selectors to `dist/mods.json` for the CI matrix. |
 | `release-matrix` | Builds the image, reads Release Please JSON from `RELEASE_OUTPUTS`, and writes selected mods and tags to `dist/releases.json`. |
+| `tag-matrix` | Builds the image, validates `TAG` against the release configuration and mod version, and writes its selected mod to `dist/releases.json`. CI publishing uses this task. |
 | `publish` | Builds the image and uploads the single tested ZIP in `dist/` with the selected `MOD` and `TAG`, using `FACTORIO_API_KEY`. This task makes real portal changes. |
 
 The `MOD` variable selects a directory under `mods/`; its empty default selects

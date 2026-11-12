@@ -44,7 +44,9 @@ creates and reloads a Factorio save, requiring `FACTORIO_USERNAME` and
 [container test details](docs/development.md#local-container-tests).
 
 GitHub CI calls the same Maru tasks and Docker image. Its Maru version is pinned
-in `.maru-version`, and fork PRs use the credential-free `test-static` task.
+in `.maru-version`. All PRs use credential-free `test-static`; main pushes run
+authenticated tests in the `trusted` environment. Version tags such as
+`gcki-continued/v2.0.2` run authenticated tests and portal publication in `trusted`.
 
 ## Licensing
 
