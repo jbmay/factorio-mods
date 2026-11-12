@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.3.1](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.3.0...gcki-continued/v2.3.1) (2026-11-12)
+
+
+### Bug Fixes
+
+* **gcki:** allow claiming, locking, and unlocking vehicles at any distance on the character's surface ([67e5540](https://github.com/jbmay/factorio-mods/commit/67e55405fcbba1ae8faa05c61e58efe0a7ddda07))
+* **gcki:** correct summon range, vehicle targeting, and disabled-key feedback ([00ce1ef](https://github.com/jbmay/factorio-mods/commit/00ce1efcd3383dec7afdffa3e71f988de5819f04))
+* **gcki:** explain disabled keys through the shortcut tooltip and a status showing the current restriction ([67e5540](https://github.com/jbmay/factorio-mods/commit/67e55405fcbba1ae8faa05c61e58efe0a7ddda07))
+* **gcki:** group Your vehicles by planet, surface, and internal vehicle ID instead of claim order ([67e5540](https://github.com/jbmay/factorio-mods/commit/67e55405fcbba1ae8faa05c61e58efe0a7ddda07))
+* **gcki:** restrict summoning to physical character reach, including in remote view and while driving ([67e5540](https://github.com/jbmay/factorio-mods/commit/67e55405fcbba1ae8faa05c61e58efe0a7ddda07))
+* **gcki:** use Factorio's selected vehicle when targeting Spidertrons to avoid accidentally summoning another car ([67e5540](https://github.com/jbmay/factorio-mods/commit/67e55405fcbba1ae8faa05c61e58efe0a7ddda07))
+* group player owned vehicle list by planet ([e09d648](https://github.com/jbmay/factorio-mods/commit/e09d64828c2d9b406b86b8956bdc11f9cc767f2c))
+
 ## [2.3.0](https://github.com/jbmay/factorio-mods/compare/gcki-continued/v2.2.1...gcki-continued/v2.3.0) (2026-11-12)
 
 
