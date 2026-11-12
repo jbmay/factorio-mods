@@ -1,6 +1,6 @@
 This is **Gizmos Car Keys (continued)**, a fork of [Gizmos Car Keys (improved)](https://mods.factorio.com/mod/GCKI) by Pi-C. Its internal mod name and remote interface are `gcki-continued`.
 
-The original mod and this fork cannot be enabled together. Automatic transfer of the original mod's saved ownership and lock data is not implemented; existing-save replacement requires separate migration testing.
+The original mod and this fork cannot be enabled together.
 
 Is your vehicle always where you are not, especially when you need it? Do you regularly waste time running to your vehicle because you need something from its trunk? Then *let it come to you* instead!
 
