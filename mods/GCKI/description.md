@@ -70,7 +70,24 @@ The argument `vehicle` must be a `LuaEntity` of type `"car"` or `"spider-vehicle
 
 ## Commands ##
 
+### Admin vehicle recovery ###
 
+Server admins can recover griefed vehicles or vehicles left behind by players
+who no longer play. This is an explicit console action; admin status does not
+override normal car-key, locking, or passenger behavior.
+
+- `/GCKI-clear-owner` or `/GCKI-clear-owner selected`: recover the vehicle under your cursor.
+- `/GCKI-clear-owner vehicle 12345`: recover the vehicle with that unit number.
+- `/GCKI-clear-owner player PlayerName`: recover vehicles claimed or locked by that player across all planets. Player indexes and quoted names such as `player "Player Name"` are also accepted.
+
+Recovery clears both the lock and claim and ejects occupants, allowing another
+player to claim the vehicle. The vehicle, its contents, equipment, custom name,
+and color are preserved. Each recovered vehicle is recorded in the server log
+with the administrator, vehicle ID, surface, and previous owner and lock holder.
+
+The server console and RCON can use the same command with an explicit `vehicle`
+or `player` target. An omitted or invalid target never recovers every vehicle.
+Non-admin players cannot use the recovery command.
 
 # Supported languages  #
 - English

@@ -11,6 +11,7 @@ the Lua regressions, syntax checks and packaging without engine downloads.
 | Platform guards | The shortcut, keyboard input and existing key tool cannot summon onto a platform. Returning to the character restores shortcut availability. |
 | Owner access to locked vehicles | The lock holder can enter either seat, drive and open the vehicle interface while locked. Locking while seated retains the owner; other players may ride as passengers but are rejected from the driver seat and inventory windows even during cooldowns. Seat switching cannot bypass the driver lock. Replacing a claim preserves the original lock holder's access. Mining still requires unlocking. |
 | Persistence | Both engine suites run Factorio's `game.reload_mods()` and verify the stored vehicle references, unit numbers, surfaces, positions, owners and lockers. Claimed cars remain summonable after reloading. |
+| Admin recovery | Non-admin and invalid callers are rejected. Selection, vehicle-ID, named-player and server-console targeting clear only matching claims/locks, eject occupants and preserve contents, names and colors. Other planet assignments remain intact, and missing targets never trigger global recovery. Stale removed-player records are supported. |
 
 The Python tests in `tools/tests/test_gcki_runtime.py` group the fast Lua cases
 in `runtime.lua` into base-game and Space Age suites. These use small substitutes

@@ -70,3 +70,21 @@ of a player's vehicles. If another mod moves claimed vehicles onto the same
 planet, reconciliation keeps the lowest unit number claimed and releases the
 other claims while preserving their locks. The same rule applies when Space Age
 is disabled and multiple claims must become one global claim.
+
+## Admin recovery
+
+`/GCKI-clear-owner` recovers the selected vehicle. Explicit targets are
+`/GCKI-clear-owner vehicle <unit_number>` and
+`/GCKI-clear-owner player <name or index>`; names with spaces may be quoted.
+The player form applies across planets to vehicles claimed or locked by that
+player. Server-console/RCON callers must provide an explicit target.
+
+Recovery clears the GCKI claim and lock and ejects occupants, preserving the
+entity, contents, equipment, custom name, and color. It also handles stale
+ownership records whose original player no longer exists. Actions are logged
+with the actor, vehicle ID, surface, and former owner/locker IDs.
+
+Only an admin or the server console can invoke this separate command. Admins
+retain the same normal vehicle-access rules as everyone else. Invalid or missing
+targets do not fall back to recovering all vehicles. Existing `/GCKI-unlock`,
+`/GCKI-unlock_player`, and reset commands keep their existing behavior.

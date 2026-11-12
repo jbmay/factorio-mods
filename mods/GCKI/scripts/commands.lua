@@ -136,6 +136,94 @@ commands.create_command = function(setting)
 end
 
 
+-- Explicit recovery only: admin status never changes ordinary vehicle access.
+commands.clear_owner = function(command)
+  local actor = command.player_index and game.get_player(command.player_index)
+  local function reply(key, value, text)
+    if actor then
+      actor.print({"GCKI-clear-owner." .. key, value or ""})
+    else
+      log("[GCKI admin recovery] " .. text)
+      rcon.print(text)
+    end
+  end
+  if command.player_index ~= nil and not (actor and actor.valid and actor.admin) then
+    reply("denied", nil, "Administrator rights are required.")
+    return
+  end
+
+  local argument = (command.parameter or ""):match("^%s*(.-)%s*$")
+  local mode, value = argument:match("^(%S+)%s+(.+)$")
+  local targets = {}
+  local selected = argument == "" or argument == "selected"
+  if selected then
+    local entity = actor and actor.selected
+    if entity and entity.valid and entity.unit_number then targets[1] = entity.unit_number end
+  elseif mode == "vehicle" and value:match("^%d+$") and tonumber(value) > 0 then
+    targets[1] = tonumber(value)
+  elseif mode == "player" then
+    value = value:match('^"(.*)"$') or value
+    local target = game.get_player(tonumber(value) or value)
+    if not target then
+      reply("no-player", value, "No such player: " .. value)
+      return
+    end
+    -- Snapshot IDs before recovery mutates the ownership and lock tables.
+    for id, data in pairs(mod.GCKI_vehicles or {}) do
+      if data.owner == target.index or data.locker == target.index then
+        targets[#targets + 1] = id
+      end
+    end
+  else
+    reply("usage", nil, "Usage: /GCKI-clear-owner [selected | vehicle <unit_number> | player <name or index>]")
+    return
+  end
+  table.sort(targets)
+
+  local recovered = 0
+  for _, id in ipairs(targets) do
+    local data = mod.GCKI_vehicles and mod.GCKI_vehicles[id]
+    local entity = data and data.entity
+    if entity and entity.valid and (data.owner or data.locker) then
+      local owner, locker = data.owner, data.locker
+      -- Existing removal paths notify integrations and remove the lock icon.
+      GCKI_vehicle.remove_vehicle(entity, {keep_custom_name = true, keep_color = true, keep_gui = true})
+      GCKI_vehicle.unlock_vehicle(entity)
+      -- An abandoned character must not keep the recovered vehicle occupied.
+      entity.set_driver(nil)
+      entity.set_passenger(nil)
+      -- Also clean stale indexes when an original player no longer exists.
+      local former_players = {}
+      if owner then former_players[owner] = true end
+      if locker then former_players[locker] = true end
+      for index in pairs(former_players) do
+        local locks = mod.lockers and mod.lockers[index]
+        if locks then
+          locks[id] = nil
+          if not next(locks) then mod.lockers[index] = nil end
+        end
+        local player_data = mod.player_data and mod.player_data[index]
+        if player_data and player_data.locked_or_owned then
+          player_data.locked_or_owned[id] = nil
+          if not next(player_data.locked_or_owned) then player_data.locked_or_owned = nil end
+        end
+        GCKI_ownership.refresh(index)
+      end
+      GCKI_gui.update_guis(entity)
+      recovered = recovered + 1
+      log(string.format("[GCKI admin recovery] actor=%s vehicle=%s surface=%s owner=%s locker=%s",
+                        actor and actor.name or "server-console", id, entity.surface.name,
+                        tostring(owner), tostring(locker)))
+    end
+  end
+  if recovered > 0 then
+    reply("success", recovered, "Recovered " .. recovered .. " vehicle(s); locks and claims cleared.")
+  else
+    reply("no-vehicles", nil, "No valid claimed or locked vehicles matched. Nothing changed.")
+  end
+end
+
+
 -- Create command to unlock all vehicles
 commands.unlock = function(command)
   GCKI.entered_command(command)

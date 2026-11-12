@@ -285,6 +285,45 @@ return function(context)
         data.owner, data.locker = owner, locker
         mod.player_data[player.index].skip_state_change = nil
       end)
+      case('admin recovery is explicit and preserves the recovered vehicle and its contents', function()
+        local saved = state.cars[#state.cars]
+        local car = saved.entity
+        move(player, car.surface)
+        local was_admin = player.admin
+        local trunk = car.get_inventory(defines.inventory.car_trunk)
+        assert(trunk.insert{name = 'iron-plate', count = 12} == 12)
+        GCKI_vehicle.edit_vehicle_name{player = player, vehicle = car, new_name = 'GCKI recovery test'}
+        local color = car.color
+        player.admin = false
+        GCKI_commands.clear_owner{player_index = player.index, parameter = 'vehicle ' .. car.unit_number}
+        assert_claim(player, car); assert_locked(player, car)
+        player.admin = true
+        car.set_driver(player)
+        GCKI_commands.clear_owner{player_index = player.index, parameter = 'vehicle invalid'}
+        assert_claim(player, car); assert_locked(player, car)
+        GCKI_commands.clear_owner{player_index = player.index, parameter = 'vehicle ' .. car.unit_number}
+        assert(car.valid and car.unit_number == saved.id and not mod.GCKI_vehicles[car.unit_number])
+        assert(car.operable and car.minable_flag and not car.disabled_by_script)
+        assert(not car.get_driver() and not car.get_passenger() and not player.vehicle)
+        assert(trunk.get_item_count('iron-plate') == 12)
+        assert(mod.named_vehicles.by_id[car.unit_number].name == 'GCKI recovery test')
+        assert(car.color.r == color.r and car.color.g == color.g and car.color.b == color.b)
+        -- Restore the fixture's ordinary assignment for its later save/load checks.
+        click(player, car.position); click(player, car.position)
+        assert_claim(player, car); assert_locked(player, car)
+        player.admin = was_admin
+      end)
+      case('server-console recovery clears a removed players stale lock and claim', function()
+        local car = spawn(player, player.surface, {10, -10})
+        local id, missing = car.unit_number, player.index + 1000
+        mod.GCKI_vehicles[id] = {entity = car, owner = missing, locker = missing}
+        mod.owners[missing] = id
+        mod.lockers[missing] = {[id] = id}
+        car.disabled_by_script, car.operable, car.minable_flag = true, false, false
+        GCKI_commands.clear_owner{parameter = 'vehicle ' .. id}
+        assert(not mod.GCKI_vehicles[id] and not mod.owners[missing] and not mod.lockers[missing])
+        assert(car.valid and car.operable and car.minable_flag and not car.disabled_by_script)
+      end)
       state.results = results
       state.awaiting_reload = true
       -- This uses Factorio's real mod save/load lifecycle, preserving LuaEntity

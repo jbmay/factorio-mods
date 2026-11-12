@@ -297,6 +297,12 @@ do
   end
 
 
+  commands.add_command(
+    "GCKI-clear-owner",
+    {"GCKI-clear-owner.usage"},
+    GCKI_commands.clear_owner
+  )
+
   -- Create commands to unlock/reset all (the player's) vehicles
   local c_name
   for c, command in pairs({

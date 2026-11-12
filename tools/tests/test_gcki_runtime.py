@@ -45,6 +45,15 @@ LOCK_CASES = (
     "lock_rejects_other_inventory_but_unlock_restores_public_access",
     "lock_holder_keeps_access_after_claiming_a_replacement",
 )
+ADMIN_CASES = (
+    "admin_recovery_rejects_nonadmins_and_invalid_callers",
+    "admin_recovery_is_explicit_and_does_not_grant_routine_access",
+    "admin_recovers_selected_vehicle_without_changing_other_claims_or_contents",
+    "admin_recovers_one_abandoned_players_vehicles_on_all_planets",
+    "server_console_recovers_vehicle_with_a_removed_owner",
+)
+BASE_GAME_CASES += ADMIN_CASES
+SPACE_AGE_CASES += ADMIN_CASES
 BASE_GAME_CASES += LOCK_CASES
 SPACE_AGE_CASES += LOCK_CASES
 

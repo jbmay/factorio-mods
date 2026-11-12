@@ -7,7 +7,10 @@ GCKI.argprint = tostring
 GCKI.enquote = tostring
 GCKI.normalize_position = function(p) return p end
 GCKI.prefixed = function(s, prefix) return s:sub(1, #prefix) == prefix end
-GCKI.ascertain_player = function(p) return type(p) == 'number' and game.get_player(p) or p end
+GCKI.ascertain_player = function(p)
+  if type(p) == 'number' then return game.get_player(p) end
+  return p
+end
 GCKI.shortcut_name = 'GCKI_carkey'
 GCKI.carkey_name = 'GCKI_car-key'
 GCKI.ACTION_DELAY = 0
@@ -37,7 +40,15 @@ local player = {valid = true, index = 1, name = 'one', surface = nauvis,
 local other_player = {valid = true, index = 2, name = 'two', surface = nauvis,
                       character = {valid = true}, force = player.force}
 local players = {[1] = player, [2] = other_player}
-game = {tick = 100, players = players, get_player = function(id) return players[id] end}
+game = {tick = 100, players = players, get_player = function(id)
+  if type(id) == 'number' then return players[id] end
+  for _, candidate in pairs(players) do if candidate.name == id then return candidate end end
+end}
+local audit, replies = {}, {}
+log = function(message) audit[#audit + 1] = message end
+rcon = {print = function(message) replies[#replies + 1] = message end}
+player.print = function(message) replies[#replies + 1] = message end
+other_player.print = player.print
 player.cursor_stack.set_stack = function(stack)
   player.cursor_stack.name = stack.name
   player.cursor_stack.valid_for_read = true
@@ -74,6 +85,7 @@ GCKI_events.used_key = dofile('mods/GCKI/scripts/event_key_shortcut.lua')
 GCKI_player = dofile('mods/GCKI/scripts/player_functions.lua')
 GCKI_player.is_in_reach = function() return true end
 GCKI_custom_input = dofile('mods/GCKI/scripts/custom_inputs.lua')
+GCKI_commands = dofile('mods/GCKI/scripts/commands.lua')
 
 local function vehicle(id, where, owner)
   local entity = {unit_number = id, valid = true, surface = where, position = {x = 0, y = 0},
@@ -333,6 +345,82 @@ function cases.lock_holder_keeps_access_after_claiming_a_replacement()
   GCKI_vehicle.enforce_vehicle_lock(first)
   assert(first.seats.driver == player and GCKI_vehicle.can_access_vehicle(first, player))
   assert(not GCKI_vehicle.can_access_vehicle(first, other_player))
+end
+local function recover(args)
+  args = args or {}
+  args.name = 'GCKI-clear-owner'
+  args.tick = game.tick
+  GCKI_commands.clear_owner(args)
+end
+function cases.admin_recovery_rejects_nonadmins_and_invalid_callers()
+  local car = vehicle(11, nauvis); claim(car); GCKI_events.used_key.toggle_lock(player, car)
+  player.selected = car
+  recover{player_index = 2, parameter = 'vehicle 11'}
+  recover{player_index = 999, parameter = 'vehicle 11'}
+  assert(mod.GCKI_vehicles[11].owner == 1 and mod.GCKI_vehicles[11].locker == 1)
+  assert(not car.minable_flag)
+end
+function cases.admin_recovery_is_explicit_and_does_not_grant_routine_access()
+  local car = vehicle(11, nauvis); claim(car); GCKI_events.used_key.toggle_lock(player, car)
+  other_player.admin = true
+  assert(not GCKI_vehicle.can_access_vehicle(car, other_player))
+  other_player.selected = nil
+  recover{player_index = 2}
+  for _, argument in ipairs({'vehicle nope', 'vehicle 11 extra', 'all', 'vehicle 9999', 'player missing'}) do
+    recover{player_index = 2, parameter = argument}
+  end
+  recover{} -- server console has no implicit selected vehicle or all-vehicles fallback
+  assert(mod.GCKI_vehicles[11].owner == 1 and mod.GCKI_vehicles[11].locker == 1)
+end
+function cases.admin_recovers_selected_vehicle_without_changing_other_claims_or_contents()
+  local car, other = vehicle(11, nauvis), vehicle(22, vulcanus)
+  claim(car); GCKI_events.used_key.toggle_lock(player, car)
+  claim(other); GCKI_events.used_key.toggle_lock(player, other)
+  car.contents = {coal = 12}; car.equipment = {battery = 1}; car.color = {r = 0.5}
+  mod.named_vehicles.by_id[11] = {entity = car, name = 'Keep this name'}
+  mod.named_vehicles.by_name['Keep this name'] = 11
+  other_player.admin, other_player.selected = true, car
+  car.set_driver(player); car.set_passenger(other_player)
+  recover{player_index = 2}
+  assert(not car.seats.driver and not car.seats.passenger)
+  assert(not mod.GCKI_vehicles[11] and car.valid and car.minable_flag and car.operable)
+  assert(mod.GCKI_vehicles[22].owner == 1 and mod.GCKI_vehicles[22].locker == 1)
+  assert(car.contents.coal == 12 and car.equipment.battery == 1 and car.color.r == 0.5)
+  assert(mod.named_vehicles.by_id[11].name == 'Keep this name')
+  assert(not mod.lockers[1][11] and not mod.player_data[1].locked_or_owned[11])
+  assert(GCKI_ownership.find(1, vulcanus) == 22)
+  if script.active_mods['space-age'] then
+    assert(not GCKI_ownership.find(1, nauvis))
+  else
+    assert(GCKI_ownership.find(1, nauvis) == 22)
+  end
+  assert(#audit == 1 and audit[1]:find('vehicle=11', 1, true))
+end
+function cases.admin_recovers_one_abandoned_players_vehicles_on_all_planets()
+  local a, b = vehicle(11, nauvis), vehicle(22, vulcanus)
+  claim(a); GCKI_events.used_key.toggle_lock(player, a)
+  claim(b); GCKI_events.used_key.toggle_lock(player, b)
+  local other = vehicle(33, nauvis, 2)
+  mod.owners[2] = 33
+  other_player.admin = true
+  player.name = 'Abandoned Player'
+  recover{player_index = 2, parameter = 'player "Abandoned Player"'}
+  assert(not mod.GCKI_vehicles[11] and not mod.GCKI_vehicles[22])
+  assert(a.minable_flag and b.minable_flag)
+  assert(mod.GCKI_vehicles[33].owner == 2 and other.valid)
+  assert(not mod.owners[1] and not mod.lockers[1])
+  assert(#audit == 2)
+end
+function cases.server_console_recovers_vehicle_with_a_removed_owner()
+  local car = vehicle(11, nauvis, 999)
+  mod.GCKI_vehicles[11].locker = 999
+  mod.owners[999] = 11; mod.lockers[999] = {[11] = 11}
+  mod.player_data[999] = {locked_or_owned = {[11] = car}}
+  car.operable, car.minable_flag, car.disabled_by_script = false, false, true
+  recover{parameter = 'vehicle 11'}
+  assert(not mod.GCKI_vehicles[11] and car.operable and car.minable_flag and not car.disabled_by_script)
+  assert(not mod.owners[999] and not mod.lockers[999] and not mod.player_data[999].locked_or_owned)
+  assert(audit[1]:find('actor=server-console', 1, true))
 end
 assert(cases[arg[1]], 'Unknown runtime case: ' .. tostring(arg[1]))()
 print('[PASS] GCKI: ' .. arg[1]:gsub('_', ' '))
