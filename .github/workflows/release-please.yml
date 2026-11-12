@@ -20,7 +20,7 @@ jobs:
       issues: write
       pull-requests: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
       - name: Require bot credentials that trigger PR and tag workflows
@@ -31,7 +31,7 @@ jobs:
             echo 'Configure RELEASE_PLEASE_TOKEN so release PRs and version tags trigger CI.' >&2
             exit 1
           fi
-      - uses: googleapis/release-please-action@v4
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4
         id: release
         with:
           token: ${{ secrets.RELEASE_PLEASE_TOKEN }}
