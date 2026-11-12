@@ -1567,7 +1567,7 @@ GCKI.writeDebug("Player is owner!")
 
       -- Remove player from list of owners
       GCKI.writeDebug("Removing player %s from mod.owners", {player_id})
-      mod.owners[player_id] = nil
+      GCKI_ownership.refresh(player_id, v_id)
 
       -- Remove owner from vehicle data
       GCKI.writeDebug("Removing player %s from vehicle data", {v.owner})
@@ -1636,7 +1636,7 @@ end
 
 ------------------------------------------------------------------------------------
 --                        MARK VEHICLE AS OWNED BY PLAYER                         --
---                Each player may only own one vehicle at any time!               --
+--     One claimed vehicle per planet with Space Age, otherwise one globally.     --
 ------------------------------------------------------------------------------------
 common_vehicle.add_vehicle_owner = function(vehicle, player, flags)
   -- vehicle:           unit_number (for GCKI-controlled vehicles) or entity
@@ -1662,6 +1662,7 @@ GCKI.show("vehicle after getting the entity", GCKI.argprint(vehicle))
                               GCKI.argprint(player).." is not a valid player!")
     return
   end
+  if not GCKI_ownership.scope(vehicle.surface) then return end
   local player_id = player.index
   local p_data = mod.player_data[player_id]
 
@@ -1740,8 +1741,8 @@ GCKI.show("mod.GCKI_vehicles["..v_id.."]", mod.GCKI_vehicles[v_id])
     return
   end
 
-  -- Remove owner from previously owned vehicle
-  local last_owned = mod.owners[player_id]
+  -- Replace only the claim in this vehicle's planet/surface scope.
+  local last_owned = GCKI_ownership.find(player_id, vehicle.surface, v_id)
   if last_owned then
 GCKI.writeDebug("Mark previously owned vehicle as unowned!")
     local pass_on_flags = {
@@ -2691,9 +2692,8 @@ GCKI.show("orig_color", orig_color)
   --~ GCKI.assert(mod_name, {"string", "nil"})
   mod_name = mod_name and GCKI.enquote(mod_name) or "unknown mod"
 
-  -- Each player may only own one vehicle! If a player has claimed a new one,
-  -- remove "owner" from stored data!
-  if owner and mod.owners[owner] and mod.owners[owner] ~= v_id then
+  -- Do not restore an old claim over an existing claim in the same scope.
+  if owner and GCKI_ownership.find(owner, vehicle.surface, v_id) then
     GCKI.writeDebug("Player %s has claimed another vehicle!", {owner})
     owner = nil
   end
@@ -2824,7 +2824,7 @@ common_vehicle.reset_all_vehicles = function()
 
   -- Vehicles with an owner (these may also be locked)
   GCKI.writeDebug("Looking for vehicles with an owner.")
-  for player, vehicle in pairs(mod.owners) do
+  for vehicle, player in pairs(GCKI_ownership.all()) do
     p_cnt = p_cnt + 1
     GCKI.show("Vehicle of player "..player, vehicle)
     common_vehicle.reset_vehicle(vehicle)
@@ -2873,11 +2873,11 @@ common_vehicle.reset_player_vehicles = function(player)
 
   -- Vehicle owned by the player
   GCKI.writeDebugNewBlock("Is %s owner of a vehicle?", {GCKI.argprint(player)})
-  local owned_by_player = mod.owners and mod.owners[player.index]
+  local owned_by_player = GCKI_ownership.all(player.index)
 GCKI.show("owned_by_player", owned_by_player)
-  if owned_by_player then
+  for id in pairs(owned_by_player) do
     GCKI.writeDebug("Yes! Must reset vehicle.")
-    common_vehicle.reset_vehicle(owned_by_player)
+    common_vehicle.reset_vehicle(id)
     GCKI.writeDebug("Reset vehicle owned by %s.", {GCKI.argprint(player)})
   end
 

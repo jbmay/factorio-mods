@@ -126,14 +126,21 @@ def validate(mod):
     for dep in info.get("dependencies", ["base"]):
         if not isinstance(dep, str) or not DEPENDENCY.fullmatch(dep):
             raise ValueError(f"{mod}: unsupported dependency {dep!r}")
-    for key in ("scenarios", "saves"):
-        if not isinstance(ci.get(key), list):
+    for key in ("scenarios", "saves", "runtime_tests"):
+        items = ci.get(key, []) if key == "runtime_tests" else ci.get(key)
+        if not isinstance(items, list):
             raise ValueError(f"{mod}: ci.json needs a {key} list")
-        for item in ci[key]:
+        for item in items:
             if not re.fullmatch(r"[A-Za-z0-9_.-]+", item) or item in (".", ".."):
                 raise ValueError(f"{mod}: unsafe test fixture name")
+        if len(items) != len(set(items)):
+            raise ValueError(f"{mod}: duplicate {key} fixture")
+    if ci.get("runtime_tests") and version_tuple(ci["factorio"]) < (2, 1, 24):
+        raise ValueError("Runtime behavior tests require Factorio >= 2.1.24")
     if not isinstance(ci.get("benchmark_ticks"), int) or ci["benchmark_ticks"] < 1:
         raise ValueError(f"{mod}: benchmark_ticks must be positive")
+    if not isinstance(ci.get("space_age", False), bool):
+        raise ValueError(f"{mod}: space_age must be a boolean")
     return path, info, ci
 
 
@@ -250,6 +257,51 @@ def check_dependencies(infos):
                 raise ValueError(f"Unsatisfied dependency: {info['name']} requires {dep}")
 
 
+def run_runtime_tests(mod, ci, package_zip, mods, common, save, work, mode, report):
+    """Stage test-only scripts and exercise real handlers plus mod save/load."""
+    suites = ci.get("runtime_tests", [])
+    if not suites:
+        return
+    installed = mods / package_zip.stem
+    if (mods / package_zip.name).exists():
+        with zipfile.ZipFile(package_zip) as archive:
+            archive.extractall(mods)
+        (mods / package_zip.name).unlink()
+    target = installed / "ci-runtime"
+    target.mkdir(exist_ok=True)
+    for suite in suites:
+        shutil.copy2(ROOT / "tests" / mod / "engine" / f"{suite}.lua", target / f"{suite}.lua")
+    control = installed / "control.lua"
+    marker = "-- mod-ci runtime test loader (temporary installed copy only)"
+    source = control.read_text()
+    if marker not in source:
+        control.write_text(source + '\n' + marker + '''
+local ci_suite, ci_mode = (script.test_arg or ""):match(
+  "^mod%-ci:([%w_.-]+):([%a-]+)$")
+if ci_suite then
+  require("ci-runtime/" .. ci_suite){suite = ci_suite, mode = ci_mode}
+end
+''')
+    for suite in suites:
+        results = work / "data/script-output" / f"mod-ci-{suite}-{mode}.json"
+        results.unlink(missing_ok=True)
+        completed = []
+        with report.case(f"{mod}: {mode} {suite} behavior and save/load in Factorio {ci['factorio']}"):
+            # Preserve completed Lua case results even when a later assertion fails.
+            try:
+                subprocess.run(common + ["--test-save", str(save), "--test-arg",
+                                         f"mod-ci:{suite}:{mode}"], check=True, timeout=180)
+            finally:
+                if results.exists():
+                    completed = read_json(results)
+                    for case in completed:
+                        if not isinstance(case.get("name"), str) or case.get("status") not in ("passed", "failed"):
+                            raise ValueError("Invalid runtime test result")
+                        report.record(f"{mod}: {mode}: {case['name']}", case["status"])
+            if not completed or any(case["status"] != "passed" for case in completed):
+                raise ValueError("Runtime suite did not report successful assertions")
+
+
 def run_engine(mod, work, report=None):
     report = report if report is not None else TestReport()
     with report.case(f"{mod}: engine configuration"):
@@ -299,9 +351,15 @@ def run_engine(mod, work, report=None):
             infos[name] = dep_info
             (mods / f"{name}_{version}.zip").write_bytes(data)
         check_dependencies(infos)
-    (mods / "mod-list.json").write_text(json.dumps({"mods": [
-        {"name": name, "enabled": True} for name in infos if name != "core"
-    ]}))
+    # Unlisted bundled mods can default to enabled. Explicitly disable every
+    # bundled mod outside the selected combination so the baseline is truly base.
+    bundled_names = {read_json(file)["name"] for file in (work / "factorio/data").glob("*/info.json")}
+    def write_mod_list():
+        (mods / "mod-list.json").write_text(json.dumps({"mods": [
+            {"name": name, "enabled": name in infos}
+            for name in sorted((bundled_names | infos.keys()) - {"core"})
+        ]}))
+    write_mod_list()
     # Isolate write-data as well as mods; never touch a developer's installed game.
     config = work / "config.ini"
     (work / "data").mkdir()
@@ -335,6 +393,30 @@ def run_engine(mod, work, report=None):
         report.record(f"{mod}: scenario fixtures", "skipped", "none configured")
     if not ci["saves"]:
         report.record(f"{mod}: save fixtures", "skipped", "none configured")
+    run_runtime_tests(mod, ci, package_zip, mods, common, save, work, "base-game", report)
+    if ci.get("space_age", False):
+        with report.case(f"{mod}: bundled Space Age dependencies and constraints"):
+            def enable_bundled(name):
+                if name in infos:
+                    return
+                bundled = read_json(work / "factorio/data" / name / "info.json")
+                infos[name] = bundled
+                for dependency in bundled.get("dependencies", []):
+                    dep = DEPENDENCY.fullmatch(dependency)
+                    if dep and dep["prefix"] not in ("?", "(?)", "!"):
+                        enable_bundled(dep["name"])
+
+            enable_bundled("space-age")
+            check_dependencies(infos)
+            write_mod_list()
+        space_save = work / "space-age-smoke.zip"
+        with report.case(f"{mod}: Space Age initialization and new save creation"):
+            subprocess.run(common + ["--create", str(space_save), "--map-gen-seed", "1"],
+                           check=True, timeout=180)
+        with report.case(f"{mod}: reload Space Age save and run {ci['benchmark_ticks']} ticks"):
+            subprocess.run(common + ["--benchmark", str(space_save), "--benchmark-ticks", str(ci["benchmark_ticks"]),
+                                     "--benchmark-runs", "1"], check=True, timeout=180)
+        run_runtime_tests(mod, ci, package_zip, mods, common, space_save, work, "space-age", report)
 
 
 def release_matrix(outputs):
@@ -436,8 +518,10 @@ def main():
         print(json.dumps(tag_matrix(args.tag)))
     elif args.command == "check":
         with report.case(f"{args.mod}: metadata and release version consistency"):
-            path, _, _ = validate(args.mod)
+            path, _, ci = validate(args.mod)
         files = sorted(path.rglob("*.lua"))
+        files += [ROOT / "tests" / args.mod / "engine" / f"{suite}.lua"
+                  for suite in ci.get("runtime_tests", [])]
         with report.case(f"{args.mod}: Lua 5.2 syntax ({len(files)} files)"):
             for file in files:
                 subprocess.run([os.getenv("LUAC", "luac5.2"), "-p", str(file)], check=True)

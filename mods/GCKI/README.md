@@ -42,3 +42,24 @@ activation and mining flags. `ci.json` pins the engine and dependency used for s
 `portal.json` records the upstream identity and first-publication metadata.
 See [shared development notes](../../docs/development.md) for credentials, coverage,
 and the release workflow.
+
+## Vehicle assignments with Space Age
+
+When Space Age is enabled, each player can claim one vehicle per planet. The car
+keys claim, lock/unlock, or summon the vehicle on the player's current planet;
+claiming a replacement leaves assignments on other planets intact. Previously
+locked vehicles stay locked when their claim is replaced. Custom planets are
+supported, and surfaces without an associated planet have separate assignments.
+Without Space Age, each player retains one global claimed vehicle.
+
+The shortcut is disabled on space platforms, and both the keyboard shortcut and
+key tool reject platform use. Keys also reject remote views of another surface;
+returning to the character's surface restores the shortcut when its technology
+is unlocked. Existing saves retain their claims without a storage migration.
+
+The remote `owned_by_player` lookup returns the assignment for the player's
+current planet with Space Age enabled. Administrative resets still affect all
+of a player's vehicles. If another mod moves claimed vehicles onto the same
+planet, reconciliation keeps the lowest unit number claimed and releases the
+other claims while preserving their locks. The same rule applies when Space Age
+is disabled and multiple claims must become one global claim.

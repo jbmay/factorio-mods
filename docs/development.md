@@ -61,10 +61,30 @@ always checks out the event's exact SHA, preventing a caller from selecting
 another branch while borrowing the event's trusted environment.
 
 The `gcki-continued` fork under `mods/GCKI` targets Factorio 2.1 and pins engine
-**2.1.24** and **Pi-C_lib 2.1.0**. The current checks cover startup, save loading,
-and tick execution. They do not cover locking, summoning, multiplayer, or save
-upgrades. The scenario and save-fixture lists are empty; the smoke-test save is
-generated automatically in the work directory.
+**2.1.24** and **Pi-C_lib 2.1.0**. Engine checks cover startup, save loading,
+and 600 ticks both without and with Space Age. `ci.json.space_age: true` enables
+the additional expansion pass using the bundled expansion and its dependencies.
+Smoke-test saves are generated automatically in the work directory.
+
+`ci.json.runtime_tests` selects `tests/GCKI/engine/vehicles.lua`. It runs real
+claim/lock/unlock/summon operations in both modes, covering all five Space Age
+planets, replacement claims and platform guards. Factorio's `reload_mods()` then
+exercises the mod save/load lifecycle and verifies that assignments, locks and
+vehicle references survive and remain usable. The native test runner does not
+write requested autosaves; these checks do not create populated save fixtures.
+Every fixture assertion is included by name in the combined test summary.
+Unselected bundled mods are explicitly disabled so the base-game pass cannot
+silently enable Space Age.
+
+`tests/GCKI/runtime.lua` exercises the production Lua handlers with substitutes
+for Factorio APIs. Its named regression cases cover planet-specific claims,
+locking, summoning, platform and remote-view guards, existing save records,
+multiple players, resets, and reconciliation. Python discovers separate base-game
+and Space Age classes in the normal unit suite, so both `test-static` and `test`
+run them. Full tests add the engine behavior suites. They do not simulate complete
+multiplayer sessions or verify upgrades from older mod versions. Native scenario
+and save-fixture lists remain empty. [GCKI test coverage](../tests/GCKI/README.md)
+describes the suite boundaries.
 
 `ci.json.dependencies` pins all external mods used by the tests, including
 transitive requirements and optional integrations. The runner verifies portal

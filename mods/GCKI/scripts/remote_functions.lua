@@ -36,7 +36,8 @@ remote.add_interface(GCKI_NAME, {
     GCKI.writeDebug("GCKI: Entered interface function owned_by_player")
     local p = GCKI_player.get_player_index(player)
 
-    return mod.owners[p]
+    local owner = p and game.get_player(p)
+    return owner and GCKI_ownership.find(p, owner.surface)
   end,
 
 

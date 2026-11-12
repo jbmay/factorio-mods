@@ -133,7 +133,7 @@ GCKI.show("locker", GCKI.argprint(locker))
     if not mod.GCKI_vehicles[v_id] then
       GCKI.writeDebug("Removing obsolete vehicle %s from mod.owners[%s]!",
                       {v_id, owner})
-      mod.owners[owner] = nil
+      GCKI_ownership.refresh(owner, v_id)
     end
   end
 

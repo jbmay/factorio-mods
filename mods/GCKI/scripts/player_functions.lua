@@ -112,7 +112,7 @@ GCKI.show("f_data", f_data)
   local unlock_shortcut = GCKI.is_unlock_tech_researched(player.force) or false
 GCKI.show("unlock_shortcut", unlock_shortcut)
 
-  player.set_shortcut_available(GCKI.shortcut_name, unlock_shortcut)
+  player.set_shortcut_available(GCKI.shortcut_name, unlock_shortcut and GCKI_ownership.can_use(player))
   if f_data then
     f_data.show_shortcuts = unlock_shortcut
     GCKI.writeDebug("%sabled shortcut %s!",
@@ -239,7 +239,7 @@ common_player.remove_player = function(player_or_id, flags) -- player: player.in
 
   if player_id then
     -- Get vehicle owned by player
-    local v_owned = mod.owners[player_id]
+    local v_owned = GCKI_ownership.all(player_id)
     -- Get vehicles locked by player
     local v_locked = mod.lockers[player_id]
     -- Get named vehicles
@@ -263,12 +263,12 @@ common_player.remove_player = function(player_or_id, flags) -- player: player.in
     -- (Moved to GCKI_player.remove_player()!)
 
     -- Remove player as owner of vehicle in list
-    if v_owned then
-      vehicle = mod.GCKI_vehicles[v_owned]
+    for id in pairs(v_owned) do
+      vehicle = mod.GCKI_vehicles[id]
       if vehicle then
         GCKI.writeDebug("Player %s is no longer the owner of %s!",
                         {GCKI.argprint(player), GCKI.argprint(vehicle)})
-        GCKI_vehicle.remove_vehicle_owner(v_owned, player_id, pass_on_flags)
+        GCKI_vehicle.remove_vehicle_owner(id, player_id, pass_on_flags)
       end
     end
 
@@ -401,8 +401,7 @@ end
 common_player.get_player_index = function(player)
   GCKI.entered_function({player})
 
-  player = type(player) == "table" and player.object_name == "LuaPlayer" and
-            player or game.get_player(player)
+  player = GCKI.ascertain_player(player)
 
   return player and player.valid and player.index
 end

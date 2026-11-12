@@ -5,5 +5,7 @@
   },
   "scenarios": [],
   "saves": [],
-  "benchmark_ticks": 600
+  "runtime_tests": ["vehicles"],
+  "benchmark_ticks": 600,
+  "space_age": true
 }

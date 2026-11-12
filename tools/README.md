@@ -100,7 +100,30 @@ A generated `mod-list.json` enables the candidate, its pinned dependencies, and
 the base game. A separate Factorio configuration isolates both mods and writable
 game data from the developer's installation. The engine creates a map with seed
 `1`, then loads it for the configured number of benchmark ticks. Each engine
-process has a 180-second timeout.
+process has a 180-second timeout. Bundled mods outside the selected combination
+are explicitly disabled; leaving them unlisted can enable them by default.
+
+When `ci.json.space_age` is `true`, the runner also enables the bundled
+`space-age` mod and recursively enables its bundled dependencies. It validates
+that combination, creates `space-age-smoke.zip`, and reloads it for the same
+number of benchmark ticks. This expansion pass follows the base-game checks
+and uses the same engine download and external dependency pins.
+
+`run_runtime_tests()` runs the optional suites named in `ci.json.runtime_tests`
+in both engine modes (the expansion mode requires `space_age: true`). Each suite
+is a Lua module under `tests/<mod>/engine/` that returns a function accepting
+`{suite, mode}`. The runner extracts the candidate ZIP into its isolated mod
+directory and stages a loader plus those modules into that copy. The original
+release ZIP is unchanged. Fixtures require Factorio 2.1.24 or newer.
+
+The loader runs only with the matching `--test-arg mod-ci:<suite>:<mode>`. Each
+fixture writes a nonempty JSON array of `{name, status}` results to
+`script-output/mod-ci-<suite>-<mode>.json` and finishes using
+`script.finish_test(true)`. The runner records individual assertions, retains
+partial results on failure, and rejects missing results or failed assertions.
+GCKI's fixture uses `game.reload_mods()` to exercise mod save/load persistence;
+native test runs do not write requested autosaves. See the
+[GCKI suite documentation](../tests/GCKI/README.md) for coverage.
 
 For Factorio >= 2.1.24, the runner also executes scenarios named in
 `ci.json.scenarios` and save fixtures named in `ci.json.saves`. Scenarios are

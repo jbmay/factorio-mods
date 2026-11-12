@@ -27,6 +27,8 @@ GCKI_string                             = GCKI.string_functions
 -- (Must be loaded after common.lua!)
 GCKI_prototypes                         = require(path..'.vehicle_lists')
 
+GCKI_ownership = require(path..'scripts.ownership')
+
 -- Event handlers
 GCKI_events                             = require(path..'scripts.event_handlers')
 -- The car keys (as of 1.1.2: a shortcut) have been used used
@@ -94,6 +96,8 @@ GCKI_event_lists = {
     "on_player_removed",
     "on_player_driving_changed_state",
     "on_player_changed_force",
+    "on_player_changed_surface",
+    "on_player_controller_changed",
     "on_forces_merging",
   },
   filterable_vehicle_events = {
