@@ -17,10 +17,10 @@ upstream `.bak` files remain on disk but are excluded by the root `.gitignore`.
 
 ## License and credits
 
-The mod portal lists this mod under the MIT license. The extracted download
-contains no standalone license file. Preserve upstream attribution and obtain
-the applicable license notice for inclusion before redistribution; do not
-substitute a new copyright notice for the upstream authors.
+The mod portal lists this mod under the MIT license. [LICENSE](LICENSE) contains
+the generic MIT terms downloaded from SPDX. The imported archive contained no
+standalone copyright notice; no author-specific notice has been added. The
+license file is included in packaged mod ZIPs.
 
 See `graphics/credits.txt` for artwork attribution and `description.md` for the
 upstream portal description, usage instructions, and additional credits.
