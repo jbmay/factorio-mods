@@ -260,7 +260,7 @@ GCKI.show("id", GCKI.argprint(id))
     -- Player must be admin,
     elseif player.admin or
             -- or must be owner of this vehicle,
-            (owners and owners[player.index] == id) or
+            (mod.GCKI_vehicles[id] and mod.GCKI_vehicles[id].owner == player.index) or
             -- or must have locked this vehicle
             (lockers and lockers[player.index] and lockers[player.index][id]) then
 

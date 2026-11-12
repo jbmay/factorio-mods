@@ -102,6 +102,12 @@ game data from the developer's installation. The engine creates a map with seed
 `1`, then loads it for the configured number of benchmark ticks. Each engine
 process has a 180-second timeout.
 
+When `ci.json.space_age` is `true`, the runner also enables the bundled
+`space-age` mod and recursively enables its bundled dependencies. It validates
+that combination, creates `space-age-smoke.zip`, and reloads it for the same
+number of benchmark ticks. This expansion pass follows the base-game checks
+and uses the same engine download and external dependency pins.
+
 For Factorio >= 2.1.24, the runner also executes scenarios named in
 `ci.json.scenarios` and save fixtures named in `ci.json.saves`. Scenarios are
 staged from `tests/<mod>/scenarios/` into a temporary installed copy of the mod;

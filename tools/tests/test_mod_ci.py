@@ -133,7 +133,7 @@ class ModCITests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "Symlinks"):
             ci.package("Demo")
 
-    def engine_tar(self, version):
+    def engine_tar(self, version, bundled=None):
         buffer = io.BytesIO()
         files = {
             "factorio/bin/x64/factorio": b"test executable",
@@ -142,12 +142,46 @@ class ModCITests(unittest.TestCase):
             "factorio/data/core/info.json": json.dumps({"name": "core", "version": "0.0.0",
                                                        "dependencies": []}).encode(),
         }
+        for name, dependencies in (bundled or {}).items():
+            files[f"factorio/data/{name}/info.json"] = json.dumps({
+                "name": name, "version": version, "dependencies": dependencies,
+            }).encode()
         with tarfile.open(fileobj=buffer, mode="w:xz") as tar:
             for name, data in files.items():
                 member = tarfile.TarInfo(name)
                 member.size = len(data)
                 tar.addfile(member, io.BytesIO(data))
         return buffer.getvalue()
+
+    @patch.object(ci.subprocess, "run")
+    @patch.object(ci, "request")
+    def test_space_age_checks_base_then_expansion_with_bundled_dependencies(self, request, run):
+        config = ci.read_json(self.mod / "ci.json")
+        config["space_age"] = True
+        self.write("ci.json", config)
+        request.return_value = self.engine_tar("2.0.77", {
+            "space-age": ["base", "elevated-rails", "+ quality", "recycler"],
+            "elevated-rails": ["base"], "quality": ["base"], "recycler": ["base"],
+        })
+        combinations = []
+        work = self.root / "expansion"
+        def capture(*args, **kwargs):
+            combinations.append({m["name"] for m in ci.read_json(work / "mods/mod-list.json")["mods"]})
+        run.side_effect = capture
+        ci.run_engine("Demo", work)
+        self.assertEqual(combinations[:2], [{"base", "Demo"}] * 2)
+        self.assertEqual(combinations[2:], [{"base", "Demo", "space-age", "elevated-rails", "quality", "recycler"}] * 2)
+        commands = [call.args[0] for call in run.call_args_list]
+        self.assertIn(str(work / "space-age-smoke.zip"), commands[2])
+        self.assertIn(str(work / "space-age-smoke.zip"), commands[3])
+        request.assert_called_once()
+
+    def test_space_age_configuration_requires_boolean(self):
+        config = ci.read_json(self.mod / "ci.json")
+        config["space_age"] = "true"
+        self.write("ci.json", config)
+        with self.assertRaisesRegex(ValueError, "space_age must be a boolean"):
+            ci.validate("Demo")
 
     @patch.object(ci.subprocess, "run")
     @patch.object(ci, "request")

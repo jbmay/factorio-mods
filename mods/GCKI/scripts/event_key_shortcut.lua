@@ -148,6 +148,11 @@ end
 used_key.claim_or_toggle_lock = function(player, vehicle)
 GCKI.entered_function({player, vehicle})
 
+  if not GCKI_ownership.can_use(player, true) or
+      GCKI_ownership.scope(player.surface) ~= GCKI_ownership.scope(vehicle.surface) then
+    return
+  end
+
   -- Do nothing if vehicle is not in reach of player!
   if not GCKI_player.is_in_reach(player, vehicle.position) then
     GCKI.output(player, {
@@ -614,7 +619,7 @@ end
 local function get_vehicle(owner)
 GCKI.entered_function({owner})
 
-  local vehicle = owner and mod.owners[owner.index]
+  local vehicle = owner and GCKI_ownership.find(owner.index, owner.surface)
 GCKI.show("vehicle", vehicle)
 
   if vehicle and GCKI_vehicle.must_remove_vehicle(vehicle) then
@@ -647,6 +652,8 @@ end
 used_key.summon = function(owner, position, mode)
   GCKI.entered_function({owner, position, mode})
 GCKI.writeDebug("Player summoned vehicle")
+
+  if not GCKI_ownership.can_use(owner, true) then return end
 
   -- Get the vehicle via the owner
   local vehicle = get_vehicle(owner)
@@ -738,6 +745,7 @@ used_key.key_on_position = function(player, position, mode)
   if not (player and player.valid) then
     GCKI.arg_err(player, "player specification")
   end
+  if not GCKI_ownership.can_use(player, true) then return end
   position = GCKI.normalize_position(position)
   GCKI.assert(mode, {"string", "nil"}, "string or nil")
 GCKI.show("mode", mode)
@@ -772,7 +780,7 @@ GCKI.show("mode", mode)
   ------------------------------------------------------------------------------------
 
   p_data.last_action_tick = game.tick
-  local owned_by_player = mod.owners[player.index]  -- Vehicle index
+  local owned_by_player = GCKI_ownership.find(player.index, player.surface)
 
   -- Look for vehicles at the position the key was used at. If we find one, it will
   -- be valid!

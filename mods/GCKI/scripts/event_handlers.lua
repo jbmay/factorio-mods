@@ -25,9 +25,7 @@ if AUTODRIVE then
   -- Exchange list of supported prototypes with Autodrive.
   GCKI.writeDebug("Exchanging list of supported prototypes with Autodrive!")
   local owned, locked = {}, {}
-  for p, v_id in pairs(mod.owners or {}) do
-    owned[v_id] = p
-  end
+  owned = GCKI_ownership.all()
   for v_id, v_data in pairs(mod.GCKI_vehicles) do
     locked[v_id] = v_data.locker
   end
@@ -190,8 +188,13 @@ GCKI.show("player", GCKI.argprint(player))
   --~ local vehicle
 
   -- Player must have locked vehicles and must not own one
-  if p_data.locked_or_owned and not mod.owners[p] then
-    local num = table_size(p_data.locked_or_owned)
+  if p_data.locked_or_owned and not GCKI_ownership.find(p, player.surface) then
+    local candidates = {}
+    for id, vehicle in pairs(p_data.locked_or_owned) do
+      if vehicle.valid and GCKI_ownership.scope(vehicle.surface) ==
+          GCKI_ownership.scope(player.surface) then candidates[id] = vehicle end
+    end
+    local num = table_size(candidates)
     GCKI.writeDebug("%s has lost claimed vehicle but has %s locked vehicles left!",
                     {GCKI.argprint(player), num})
 
@@ -199,7 +202,7 @@ GCKI.show("player", GCKI.argprint(player))
     if num == 1 and p_data.settings.autoclaim_locked_vehicle then
       GCKI.writeDebug("Player automatically claims the last locked vehicle!")
 
-      local _, vehicle = next(p_data.locked_or_owned)
+      local _, vehicle = next(candidates)
       GCKI_vehicle.add_vehicle_owner(vehicle, player, {keep_color = true})
 
     -- Show GUI so player can claim one of his locked vehicles
@@ -236,6 +239,7 @@ local function player_selected_area(event_data)
 
 
   local player = game.get_player(event_data.player_index)
+  if not GCKI_ownership.can_use(player, true) then return end
   local p_data = mod.player_data[player.index]
 
   -- Car-key selection tool was used
@@ -840,9 +844,7 @@ GCKI.show("AUTODRIVE", AUTODRIVE)
     -- Exchange data with Autodrive.
     GCKI.writeDebugNewBlock("Exchanging data with Autodrive!")
     local owned, locked = {}, {}
-    for p, v_id in pairs(mod.owners or {}) do
-      owned[v_id] = p
-    end
+    owned = GCKI_ownership.all()
     for v_id, v_data in pairs(mod.GCKI_vehicles) do
       locked[v_id] = v_data.locker
     end
@@ -953,6 +955,7 @@ common_events.on_configuration_changed = function(event)
   -- not based on a blacklisted prototype. Also reset all invalid entities!
   GCKI.writeDebugNewBlock("Removing entries for invalid vehicles from our tables!")
   GCKI_cleanup.cleanup_all_vehicle_lists()
+  GCKI_ownership.reconcile()
 
 
   -- Make sure that CustomColor will ignore all car-based vehicles that have been
@@ -1300,7 +1303,7 @@ GCKI.show("f_data_new", f_data_new)
                               {GCKI.enquote(GCKI.shortcut_name), GCKI.argprint(player)})
       if f_data_new.show_shortcuts then
         GCKI.writeDebug("Yes!")
-        player.set_shortcut_available(GCKI.shortcut_name, true)
+        player.set_shortcut_available(GCKI.shortcut_name, GCKI_ownership.can_use(player))
       else
         GCKI.writeDebug("No!")
       end
@@ -1598,7 +1601,7 @@ common_events.on_research_finished = function(event)
 
     -- Make shortcut available for all players on the force
     for p, player in pairs(force.players) do
-      player.set_shortcut_available(GCKI.shortcut_name, true)
+      player.set_shortcut_available(GCKI.shortcut_name, GCKI_ownership.can_use(player))
       GCKI.writeDebug("Enabled shortcut %s for %s!",
                       {GCKI.enquote(GCKI.shortcut_name), GCKI.argprint(player)})
     end
@@ -1658,7 +1661,7 @@ GCKI.show("unlock", unlock)
     local shortcut = GCKI.shortcut_name
     for p, player in pairs(force.players) do
       -- Toggle shortcut
-      player.set_shortcut_available(shortcut, unlock)
+      player.set_shortcut_available(shortcut, unlock and GCKI_ownership.can_use(player))
       GCKI.writeDebug("%sabled  shortcut %s for %s!",
                       {unlock and "En" or "Dis", GCKI.enquote(shortcut), GCKI.argprint(player)})
 
@@ -2383,6 +2386,7 @@ common_events.script_raised_teleported = function(event)
   GCKI.writeDebugNewBlock("Has %s been moved to another surface?",
                           {GCKI.argprint(vehicle)})
   if old ~= new then
+    GCKI_ownership.reconcile()
     GCKI.writeDebug("Yes! Has it been loaded/unloaded by Vehicle Wagons?")
     -- Loaded by VehicleWagon
     if new.name == GCKI.VW_hidden_surface_name then
@@ -2736,6 +2740,13 @@ end
 ------------------------------------------------------------------------------------
 --                                SHORTCUT WAS USED                               --
 ------------------------------------------------------------------------------------
+common_events.on_player_changed_surface = function(event)
+  local player = game.get_player(event.player_index)
+  if player then GCKI_ownership.update_shortcut(player) end
+end
+
+common_events.on_player_controller_changed = common_events.on_player_changed_surface
+
 common_events.on_lua_shortcut = function(event)
   GCKI.entered_event(event)
 
@@ -2761,6 +2772,7 @@ common_events.on_lua_shortcut = function(event)
 
   -- Everything is OK, we can proceed!
   if shortcut == GCKI.shortcut_name then
+    if not GCKI_ownership.can_use(player, true) then return end
     if player.clear_cursor() then
       player.cursor_stack.set_stack({name = GCKI.carkey_name, count = 1})
       GCKI.writeDebug("Changed cursor_stack of player %s", {player.name})

@@ -134,6 +134,8 @@ def validate(mod):
                 raise ValueError(f"{mod}: unsafe test fixture name")
     if not isinstance(ci.get("benchmark_ticks"), int) or ci["benchmark_ticks"] < 1:
         raise ValueError(f"{mod}: benchmark_ticks must be positive")
+    if not isinstance(ci.get("space_age", False), bool):
+        raise ValueError(f"{mod}: space_age must be a boolean")
     return path, info, ci
 
 
@@ -335,6 +337,30 @@ def run_engine(mod, work, report=None):
         report.record(f"{mod}: scenario fixtures", "skipped", "none configured")
     if not ci["saves"]:
         report.record(f"{mod}: save fixtures", "skipped", "none configured")
+    if ci.get("space_age", False):
+        with report.case(f"{mod}: bundled Space Age dependencies and constraints"):
+            def enable_bundled(name):
+                if name in infos:
+                    return
+                bundled = read_json(work / "factorio/data" / name / "info.json")
+                infos[name] = bundled
+                for dependency in bundled.get("dependencies", []):
+                    dep = DEPENDENCY.fullmatch(dependency)
+                    if dep and dep["prefix"] not in ("?", "(?)", "!"):
+                        enable_bundled(dep["name"])
+
+            enable_bundled("space-age")
+            check_dependencies(infos)
+            (mods / "mod-list.json").write_text(json.dumps({"mods": [
+                {"name": name, "enabled": True} for name in infos if name != "core"
+            ]}))
+        space_save = work / "space-age-smoke.zip"
+        with report.case(f"{mod}: Space Age initialization and new save creation"):
+            subprocess.run(common + ["--create", str(space_save), "--map-gen-seed", "1"],
+                           check=True, timeout=180)
+        with report.case(f"{mod}: reload Space Age save and run {ci['benchmark_ticks']} ticks"):
+            subprocess.run(common + ["--benchmark", str(space_save), "--benchmark-ticks", str(ci["benchmark_ticks"]),
+                                     "--benchmark-runs", "1"], check=True, timeout=180)
 
 
 def release_matrix(outputs):

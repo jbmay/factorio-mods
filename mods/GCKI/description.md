@@ -7,7 +7,7 @@ Is your vehicle always where you are not, especially when you need it? Do you re
 This mod is based on [Gizmos Car Keys](https://mods.factorio.com/mod/Gizmos_Car_Keys) by aodgizmo, since version 1.1.2 it supports spider-vehicles as well. It should work with most modded vehicles based on a car or spider-vehicle prototype. If you are the author of a mod that uses such prototypes for special purposes, you can blacklist your prototypes with GCKI.
 
 # Usage #
-The keys will be available as long as an unlock technology has been researched. Usually that will be Automobilism, but there may be others depending on the mods you are using (e.g. Ships if [Cargo Ships](https://mods.factorio.com/mod/cargo-ships) is active). Take the keys and click on a vehicle to claim it. Click *on the same vehicle* again to lock or unlock it. By using the keys *on another vehicle*, you give up ownership of your previous vehicle and claim the new one. (Hint: If you want to exchange vehicles, you should lock your old vehicle before giving it up! As of version 1.1.2, any unlocked vehicle without a player character inside can be claimed by *any* player. In other words, vehicles can be stolen by another force!)
+The keys will be available as long as an unlock technology has been researched. Usually that will be Automobilism, but there may be others depending on the mods you are using (e.g. Ships if [Cargo Ships](https://mods.factorio.com/mod/cargo-ships) is active). Take the keys and click on a vehicle to claim it. Click *on the same vehicle* again to lock or unlock it. By using the keys *on another vehicle*, you replace your claimed vehicle on that planet when Space Age is enabled, or your single global vehicle without Space Age. (Hint: If you want to exchange vehicles, you should lock your old vehicle before giving it up! As of version 1.1.2, any unlocked vehicle without a player character inside can be claimed by *any* player. In other words, vehicles can be stolen by another force!)
 
 If you use the keys on a free position where the vehicle can be placed, it will be summoned there if the position is within your reach.
 (Hint:
@@ -17,6 +17,11 @@ In contrast to the original mod, this one also supports vehicle grids and everyt
 Other than the original mod, this one should be safe to use in multiplayer games.
 
 # Does it work with other mods? #
+## Space Age ##
+With Space Age enabled, each player can claim one vehicle per planet. Clicking a vehicle with the keys claims it or toggles its lock; clicking an empty position summons the vehicle claimed on the current planet. Claims on other planets are preserved, and vehicles cannot be summoned between planets. Custom planets are supported; non-planet surfaces have independent assignments.
+
+The shortcut and keyboard input cannot be used on space platforms. Keys also cannot be used while remotely viewing another surface; return to your character's surface first. Without Space Age, the original single global vehicle behavior remains.
+
 ## Incompatible mods ##
 There have been no reports yet that this mod would cause errors if used together with another mod, so I guess it's  safe to use.
 

@@ -170,6 +170,8 @@ GCKI.show("f_data", f_data)
     return
   end
 
+  if not GCKI_ownership.can_use(player, true) then return end
+
   local cursor_stack = player.cursor_stack
 
   -- Cursor stack is not empty

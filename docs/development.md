@@ -61,10 +61,19 @@ always checks out the event's exact SHA, preventing a caller from selecting
 another branch while borrowing the event's trusted environment.
 
 The `gcki-continued` fork under `mods/GCKI` targets Factorio 2.1 and pins engine
-**2.1.24** and **Pi-C_lib 2.1.0**. The current checks cover startup, save loading,
-and tick execution. They do not cover locking, summoning, multiplayer, or save
-upgrades. The scenario and save-fixture lists are empty; the smoke-test save is
-generated automatically in the work directory.
+**2.1.24** and **Pi-C_lib 2.1.0**. Engine checks cover startup, save loading,
+and 600 ticks both without and with Space Age. `ci.json.space_age: true` enables
+the additional expansion pass using the bundled expansion and its dependencies.
+Smoke-test saves are generated automatically in the work directory.
+
+`tests/GCKI/runtime.lua` exercises the production Lua handlers with substitutes
+for Factorio APIs. Its named regression cases cover planet-specific claims,
+locking, summoning, platform and remote-view guards, existing save records,
+multiple players, resets, and reconciliation. Python discovers these tests in
+the normal unit suite, so both `test-static` and `test` run them. They supplement
+the real engine smoke checks; they do not simulate complete multiplayer sessions
+or verify save upgrades inside the engine. Native scenario and save-fixture
+lists remain empty.
 
 `ci.json.dependencies` pins all external mods used by the tests, including
 transitive requirements and optional integrations. The runner verifies portal
